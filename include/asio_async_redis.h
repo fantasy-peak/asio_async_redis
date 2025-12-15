@@ -191,6 +191,7 @@ class Redis final
     auto async_spublish(std::string_view channel, std::string_view message, CompletionToken&& token);
 
     auto& ref() { return m_redis; }
+    auto& pool() { return m_pool; }
 
   private:
     template <typename H>
