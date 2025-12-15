@@ -185,6 +185,11 @@ class Redis final
     template <typename RET, StringSequence Input, asio::completion_token_for<void(Expected<RET>)> CompletionToken>
     auto async_command(Input&& input, CompletionToken&& token);
 
+    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
+    auto async_publish(std::string_view channel, std::string_view message, CompletionToken&& token);
+    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
+    auto async_spublish(std::string_view channel, std::string_view message, CompletionToken&& token);
+
     auto& ref() { return m_redis; }
 
   private:
@@ -1008,6 +1013,34 @@ inline auto Redis<REDIS>::async_script_flush(CompletionToken&& token)
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
         std::forward<CompletionToken>(token));
+}
+
+template <typename REDIS>
+template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
+inline auto Redis<REDIS>::async_publish(std::string_view channel, std::string_view message, CompletionToken&& token)
+{
+    return asio::async_initiate<CompletionToken, void(Expected<long long>)>(
+        [this]<typename Handler>(Handler&& handler, auto channel, auto message) mutable
+        {
+            using RET = long long;
+            std::vector<std::string_view> cmd{"PUBLISH", channel, message};
+            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+        },
+        std::forward<CompletionToken>(token), channel, message);
+}
+
+template <typename REDIS>
+template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
+inline auto Redis<REDIS>::async_spublish(std::string_view channel, std::string_view message, CompletionToken&& token)
+{
+    return asio::async_initiate<CompletionToken, void(Expected<long long>)>(
+        [this]<typename Handler>(Handler&& handler, auto channel, auto message) mutable
+        {
+            using RET = long long;
+            std::vector<std::string_view> cmd{"SPUBLISH", channel, message};
+            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+        },
+        std::forward<CompletionToken>(token), channel, message);
 }
 
 }  // namespace asio_async_redis
