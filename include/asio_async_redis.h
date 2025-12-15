@@ -12,6 +12,7 @@
 
 #include <sw/redis++/async_redis.h>
 #include <sw/redis++/async_redis_cluster.h>
+#include <sw/redis++/async_sentinel.h>
 #include <sw/redis++/errors.h>
 
 #include <asio_async_redis_utils.h>
@@ -54,6 +55,15 @@ class Redis final
         : m_redis(std::make_shared<REDIS>(opts, pool_opts, loop)), m_pool(std::move(ptr))
     {
     }
+    Redis(const std::shared_ptr<sw::redis::AsyncSentinel>& sentinel, const std::string& master_name,
+          sw::redis::Role role, const sw::redis::ConnectionOptions& connection_opts,
+          const sw::redis::ConnectionPoolOptions& pool_opts = {}, const sw::redis::EventLoopSPtr& loop = nullptr,
+          int32_t size = 1)
+        : m_redis(std::make_shared<REDIS>(sentinel, master_name, role, connection_opts, pool_opts, loop)),
+          m_pool(std::make_shared<ContextPool>(size))
+    {
+    }
+
     ~Redis() { stop(); }
 
     Redis(const Redis&) = delete;
