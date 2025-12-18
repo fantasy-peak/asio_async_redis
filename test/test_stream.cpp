@@ -23,7 +23,8 @@ TEST_CASE("Test redis stream")
             }
             {
                 auto ret = co_await async_redis->async_xadd(stream_name, "*", value, asio::use_awaitable);
-                auto data = co_await async_redis->async_xrange(stream_name, "-", "+", 1, asio::use_awaitable);
+                auto data = co_await async_redis->async_xrange(stream_name, "-", "+", std::make_optional(1),
+                                                               asio::use_awaitable);
                 REQUIRE(data.value().size() == 1);
             }
             {
@@ -41,7 +42,8 @@ TEST_CASE("Test redis stream")
                 REQUIRE(std::chrono::system_clock::now() - now >= std::chrono::milliseconds(2000));
                 if (!xret.has_value())
                 {
-                    spdlog::error("{}, {}", xret.error().message(), asio_async_redis::to_string(xret.error().code()));
+                    spdlog::error("{}, {}", xret.error().message(),
+                                  asio_async_redis::to_string(xret.error().error_code()));
                 }
             }
             {

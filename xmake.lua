@@ -25,7 +25,9 @@ target("test_redis")
         "test/test_string.cpp",
         "test/test_set.cpp",
         "test/test_lua.cpp",
-        "test/test_publish.cpp")
+        "test/test_publish.cpp",
+        "test/test_connection.cpp"
+    )
     add_packages("boost", "spdlog", "redis-plus-plus", "catch2", "tl_expected")
     add_ldflags("-static-libstdc++", "-static-libgcc", {force = true})
 target_end()
@@ -42,7 +44,8 @@ target("test_redis_cluster")
         "test/test_string.cpp",
         "test/test_set.cpp",
         -- "test/test_lua.cpp",
-        "test/test_publish.cpp"
+        "test/test_publish.cpp",
+        "test/test_connection.cpp"
         )
     add_defines("TEST_REDIS_CLUSTER")
     add_packages("boost", "spdlog", "redis-plus-plus", "catch2", "tl_expected")

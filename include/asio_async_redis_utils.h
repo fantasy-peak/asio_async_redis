@@ -27,6 +27,7 @@
 #include <stdexcept>
 #include <thread>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #ifdef ASIO_ASYNC_REDIS_USE_BOOST_ASIO
@@ -118,14 +119,14 @@ class RedisError
         UnknownError,
     };
 
-    RedisError(const std::string& msg, ErrorCode code) : error_msg(msg), error_code(code) {}
+    RedisError(std::string msg, ErrorCode code) : m_error_msg(std::move(msg)), m_error_code(code) {}
 
-    auto& message() const { return error_msg; }
-    auto& code() const { return error_code; }
+    [[nodiscard]] auto& message() const { return m_error_msg; }
+    [[nodiscard]] auto& error_code() const { return m_error_code; }
 
   private:
-    std::string error_msg;
-    ErrorCode error_code{ErrorCode::UnknownError};
+    std::string m_error_msg;
+    ErrorCode m_error_code{ErrorCode::UnknownError};
 };
 
 inline std::string_view to_string(RedisError::ErrorCode error_code)

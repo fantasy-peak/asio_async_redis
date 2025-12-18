@@ -1,5 +1,6 @@
 #include "utils.h"
 
+#include <chrono>
 #include <initializer_list>
 #include <memory>
 #include <vector>
@@ -22,6 +23,9 @@ TEST_CASE("Test redis string")
                 auto iret = co_await async_redis->async_incr("num", asio::use_awaitable);
                 REQUIRE(iret.has_value());
                 REQUIRE(iret.value() == 11);
+                auto bret = co_await async_redis->async_incrby("num", 5, asio::use_awaitable);
+                REQUIRE(bret.has_value());
+                REQUIRE(bret.value() == 16);
                 auto tret = co_await async_redis->async_ttl("num", asio::use_awaitable);
                 REQUIRE(tret.has_value());
                 REQUIRE(tret.value() == -1);
@@ -57,8 +61,30 @@ TEST_CASE("Test redis string")
                 REQUIRE(ret.value() == 1);
             }
             {
-                auto ret = co_await async_redis->async_command<std::string>(
-                    std::vector<std::string>{"SET", "hello", "world"}, asio::use_awaitable);
+                std::vector<std::string> cmd{"SET", key, "hello"};
+                auto ret = co_await async_redis->async_command<std::string>(cmd, asio::use_awaitable);
+                REQUIRE(ret.has_value());
+                REQUIRE(ret.value() == "OK");
+            }
+#ifndef TEST_REDIS_CLUSTER
+            {
+                co_await async_redis->async_set("sc1", "1", asio::use_awaitable);
+                co_await async_redis->async_set("sc2", "1", asio::use_awaitable);
+                std::vector<std::string> cmd{"SCAN", "0", "MATCH", "sc*", "COUNT", "1000"};
+                auto ret = co_await async_redis->async_command<std::pair<std::string, std::vector<std::string>>>(
+                    cmd, asio::use_awaitable);
+                REQUIRE(ret.has_value());
+                auto& [cursor, keys] = ret.value();
+                REQUIRE(cursor == "0");
+            }
+#endif
+            {
+                auto ret = co_await async_redis->async_append(key, " world", asio::use_awaitable);
+                REQUIRE(ret.has_value());
+                REQUIRE(ret.value() == 11);
+            }
+            {
+                auto ret = co_await async_redis->async_setex(key, std::chrono::seconds(10), "val", asio::use_awaitable);
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == "OK");
             }

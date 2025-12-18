@@ -37,6 +37,24 @@ TEST_CASE("Test redis list")
                 REQUIRE(len_ret.has_value());
                 REQUIRE(len_ret.value() == 1);
             }
+            {
+                data = {"a", "b"};
+                {
+                    co_await async_redis->async_del(key, asio::use_awaitable);
+                    co_await async_redis->async_rpush(key, data, asio::use_awaitable);
+                    auto ret = co_await async_redis->async_blpop(key, std::chrono::seconds(1), asio::use_awaitable);
+                    REQUIRE(ret.has_value());
+                    REQUIRE(std::get<1>(ret.value().value()) == "a");
+                }
+                {
+                    auto ret = co_await async_redis->async_brpop(key, std::chrono::seconds(1), asio::use_awaitable);
+                    REQUIRE(ret.has_value());
+                    REQUIRE(std::get<1>(ret.value().value()) == "b");
+                }
+                auto timeout_ret = co_await async_redis->async_blpop(key, std::chrono::seconds(1), asio::use_awaitable);
+                REQUIRE(timeout_ret.has_value());
+                REQUIRE(!timeout_ret.value().has_value());
+            }
             co_return;
         },
         asio::use_future);

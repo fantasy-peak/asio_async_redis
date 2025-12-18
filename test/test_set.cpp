@@ -23,6 +23,11 @@ TEST_CASE("Test redis set")
                 REQUIRE(ret.value() == 3);
             }
             {
+                auto ret = co_await async_redis->async_scard(key, asio::use_awaitable);
+                REQUIRE(ret.has_value());
+                REQUIRE(ret.value() == 3);
+            }
+            {
                 auto ret = co_await async_redis->async_smembers(key, asio::use_awaitable);
                 REQUIRE(ret.has_value());
                 std::ranges::sort(ret.value());
@@ -32,6 +37,18 @@ TEST_CASE("Test redis set")
                 auto ret = co_await async_redis->async_sismember(key, "a", asio::use_awaitable);
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == 1);
+            }
+            {
+                auto ret = co_await async_redis->async_spop(key, std::nullopt, asio::use_awaitable);
+                REQUIRE(ret.has_value());
+                REQUIRE(ret.value().size() == 1);
+            }
+            {
+                // for redis cluster, need keys hash to the same slot
+                std::vector<std::string> keys{"a1"};
+                auto ret = co_await async_redis->async_del(keys, asio::use_awaitable);
+                REQUIRE(ret.has_value());
+                REQUIRE(ret.value() == 0);
             }
             co_return;
         },
