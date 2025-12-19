@@ -8,8 +8,7 @@ add_requires("tl_expected")
 
 add_defines("ASIO_ASYNC_REDIS_USE_BOOST_ASIO")
 
-set_languages("c++23")
-add_rules("plugin.compile_commands.autoupdate", { outputdir = get_config("builddir") })
+set_languages("c23", "c++23")
 
 -- set_policy("build.sanitizer.address", true)
 

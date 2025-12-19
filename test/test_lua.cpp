@@ -23,7 +23,7 @@ TEST_CASE("Test redis Functions")
                                    "local second = redis.call('get', keys[2]);"
                                    "return first + second\n"
                                    "end)";
-                auto ret = co_await async_redis->async_function_load(code, true, asio::use_awaitable);
+                auto ret = co_await async_redis->async_function_load(code, true);
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == lib_name);
             }
@@ -31,12 +31,12 @@ TEST_CASE("Test redis Functions")
                 std::vector<std::string> keys = {"k1", "k2"};
                 std::vector<std::string> empty_list = {};
                 auto ret =
-                    co_await async_redis->async_fcall<long long>("my_func", keys, empty_list, asio::use_awaitable);
+                    co_await async_redis->async_fcall<long long>("my_func", keys, empty_list);
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == 3);
             }
             {
-                auto ret = co_await async_redis->async_function_delete(lib_name, asio::use_awaitable);
+                auto ret = co_await async_redis->async_function_delete(lib_name);
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == "OK");
             }
@@ -65,18 +65,18 @@ TEST_CASE("Test redis EVAL")
             {
                 std::vector<std::string> keys = {"k1", "k2"};
                 std::vector<std::string> empty_list = {};
-                auto ret = co_await async_redis->async_eval<long long>(script, keys, empty_list, asio::use_awaitable);
+                auto ret = co_await async_redis->async_eval<long long>(script, keys, empty_list);
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == 3);
             }
             {
                 std::vector<std::string> keys = {"k1", "k2"};
                 std::vector<std::string> empty_list = {};
-                auto ret = co_await async_redis->async_script_load(script, asio::use_awaitable);
+                auto ret = co_await async_redis->async_script_load(script);
                 REQUIRE(ret.has_value());
                 spdlog::info("sha1: {}", ret.value());
                 auto eret =
-                    co_await async_redis->async_evalsha<long long>(ret.value(), keys, empty_list, asio::use_awaitable);
+                    co_await async_redis->async_evalsha<long long>(ret.value(), keys, empty_list);
                 REQUIRE(eret.has_value());
                 REQUIRE(eret.value() == 3);
             }

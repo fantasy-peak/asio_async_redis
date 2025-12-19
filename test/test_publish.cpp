@@ -16,12 +16,12 @@ TEST_CASE("Test redis PubSub")
             std::string message{"hello world"};
             spdlog::info("start test redis publish");
             {
-                auto ret = co_await async_redis->async_publish(channel, message, asio::use_awaitable);
+                auto ret = co_await async_redis->async_publish(channel, message);
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == 0);
             }
             {
-                auto ret = co_await async_redis->async_spublish(channel, message, asio::use_awaitable);
+                auto ret = co_await async_redis->async_spublish(channel, message);
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == 0);
             }

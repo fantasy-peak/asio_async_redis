@@ -23,10 +23,9 @@ TEST_CASE("Test redis cancel")
             using namespace boost::asio::experimental::awaitable_operators;
             std::string stream_name = "test_stream";
             std::vector<std::string> value{"field1", "value1", "field2", "value2"};
-            auto add_ret = co_await async_redis->async_xadd(stream_name, "*", value, asio::use_awaitable);
+            auto add_ret = co_await async_redis->async_xadd(stream_name, "*", value);
             auto result = co_await (sleep() || async_redis->async_xread(stream_name, add_ret.value(),
-                                                                        std::chrono::milliseconds(5000), 500,
-                                                                        asio::use_awaitable));
+                                                                        std::chrono::milliseconds(5000), 500));
             REQUIRE(result.index() == 0);
             REQUIRE(std::get<0>(result) == true);
             spdlog::info("start test cancel done");

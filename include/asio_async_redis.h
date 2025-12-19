@@ -19,6 +19,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <initializer_list>
 #include <memory>
 #include <optional>
 #include <set>
@@ -79,144 +80,172 @@ class Redis final
     }
 
     // connection
-    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken>
-    auto async_echo(std::string_view key, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken>
-    auto async_ping(std::string_view key, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken>
-    auto async_ping(CompletionToken&& token);
+    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_echo(std::string_view key, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_ping(std::string_view key, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_ping(CompletionToken&& token = CompletionToken{});
 
     // string
-    template <asio::completion_token_for<void(Expected<std::optional<std::string>>)> CompletionToken>
-    auto async_get(std::string_view key, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<bool>)> CompletionToken>
-    auto async_set(std::string_view key, std::string_view val, CompletionToken&& token);
+    template <asio::completion_token_for<void(Expected<std::optional<std::string>>)> CompletionToken =
+                  asio::use_awaitable_t<>>
+    auto async_get(std::string_view key, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<bool>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_set(std::string_view key, std::string_view val, CompletionToken&& token = CompletionToken{});
     // The return value may become a boolean in the future.
-    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken>
+    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken = asio::use_awaitable_t<>>
     auto async_setex(std::string_view key, const std::chrono::seconds& ttl, std::string_view val,
-                     CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_del(std::string_view key, CompletionToken&& token);
-    template <StringSequence Input, asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_del(Input&& input, CompletionToken&& token);
-    template <StringSequence Input, asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_exists(Input&& input, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<bool>)> CompletionToken>
-    auto async_expire(std::string_view key, const std::chrono::seconds& timeout, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_incr(std::string_view key, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_incrby(std::string_view key, long long increment, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_ttl(std::string_view key, CompletionToken&& token);
+                     CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_del(std::string_view key, CompletionToken&& token = CompletionToken{});
     template <StringSequence Input,
-              asio::completion_token_for<void(Expected<std::vector<std::optional<std::string>>>)> CompletionToken>
-    auto async_mget(Input&& input, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_append(std::string_view key, std::string_view str, CompletionToken&& token);
+              asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_del(Input&& input, CompletionToken&& token = CompletionToken{});
+    template <StringSequence Input,
+              asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_exists(Input&& input, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<bool>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_expire(std::string_view key, const std::chrono::seconds& timeout,
+                      CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_incr(std::string_view key, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_incrby(std::string_view key, long long increment, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_ttl(std::string_view key, CompletionToken&& token = CompletionToken{});
+    template <StringSequence Input, asio::completion_token_for<void(Expected<std::vector<std::optional<std::string>>>)>
+                                        CompletionToken = asio::use_awaitable_t<>>
+    auto async_mget(Input&& input, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_append(std::string_view key, std::string_view str, CompletionToken&& token = CompletionToken{});
 
     // hash
-    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_hset(std::string_view key, std::string_view field, std::string_view val, CompletionToken&& token);
-    template <StringKVContainer Input, asio::completion_token_for<void(Expected<void>)> CompletionToken>
-    auto async_hmset(std::string_view key, const Input& m, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<std::unordered_map<std::string, std::string>>)> CompletionToken>
-    auto async_hgetall(std::string_view key, CompletionToken&& token);
+    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_hset(std::string_view key, std::string_view field, std::string_view val,
+                    CompletionToken&& token = CompletionToken{});
+    template <StringKVContainer Input,
+              asio::completion_token_for<void(Expected<void>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_hmset(std::string_view key, const Input& m, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<std::unordered_map<std::string, std::string>>)> CompletionToken =
+                  asio::use_awaitable_t<>>
+    auto async_hgetall(std::string_view key, CompletionToken&& token = CompletionToken{});
+    template <StringSequence Input, asio::completion_token_for<void(Expected<std::vector<std::optional<std::string>>>)>
+                                        CompletionToken = asio::use_awaitable_t<>>
+    auto async_hmget(std::string_view key, Input&& input, CompletionToken&& token = CompletionToken{});
     template <StringSequence Input,
-              asio::completion_token_for<void(Expected<std::vector<std::optional<std::string>>>)> CompletionToken>
-    auto async_hmget(std::string_view key, Input&& input, CompletionToken&& token);
-    template <StringSequence Input, asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_hdel(std::string_view key, Input&& input, CompletionToken&& token);
+              asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_hdel(std::string_view key, Input&& input, CompletionToken&& token = CompletionToken{});
 
     // stream
-    template <StringSequence Input, asio::completion_token_for<void(Expected<std::string>)> CompletionToken>
-    auto async_xadd(std::string_view key, std::string_view id, Input&& input, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<std::unordered_map<std::string, ItemStream>>)> CompletionToken>
+    template <StringSequence Input,
+              asio::completion_token_for<void(Expected<std::string>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_xadd(std::string_view key, std::string_view id, Input&& input,
+                    CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<std::unordered_map<std::string, ItemStream>>)> CompletionToken =
+                  asio::use_awaitable_t<>>
     auto async_xread(std::string_view key, std::string_view id, const std::optional<std::chrono::milliseconds>& timeout,
-                     long long count, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<ItemStream>)> CompletionToken>
+                     long long count, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<ItemStream>)> CompletionToken = asio::use_awaitable_t<>>
     auto async_xrange(std::string_view key, std::string_view start, std::string_view end,
-                      const std::optional<long long>& count, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<void>)> CompletionToken>
+                      const std::optional<long long>& count, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<void>)> CompletionToken = asio::use_awaitable_t<>>
     auto async_xgroup_create(std::string_view key, std::string_view group, std::string_view id, bool mkstream,
-                             CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<std::unordered_map<std::string, ItemStream>>)> CompletionToken>
+                             CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<std::unordered_map<std::string, ItemStream>>)> CompletionToken =
+                  asio::use_awaitable_t<>>
     auto async_xreadgroup(std::string_view group, std::string_view consumer,
                           std::optional<std::chrono::milliseconds> block, std::string_view key, std::string_view id,
-                          long long count, bool noack, CompletionToken&& token);
-    template <StringSequence Input, asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_xack(std::string_view key, std::string_view group, Input&& input, CompletionToken&& token);
+                          long long count, bool noack, CompletionToken&& token = CompletionToken{});
+    template <StringSequence Input,
+              asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_xack(std::string_view key, std::string_view group, Input&& input,
+                    CompletionToken&& token = CompletionToken{});
 
     // list
-    template <StringSequence Input, asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_lpush(std::string_view key, Input&& input, CompletionToken&& token);
-    template <StringSequence Input, asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_rpush(std::string_view key, Input&& input, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<std::vector<std::string>>)> CompletionToken>
-    auto async_lrange(std::string_view key, long long start, long long stop, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<std::optional<std::string>>)> CompletionToken>
-    auto async_lpop(std::string_view key, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<std::optional<std::string>>)> CompletionToken>
-    auto async_rpop(std::string_view key, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_llen(std::string_view key, CompletionToken&& token);
+    template <StringSequence Input,
+              asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_lpush(std::string_view key, Input&& input, CompletionToken&& token = CompletionToken{});
+    template <StringSequence Input,
+              asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_rpush(std::string_view key, Input&& input, CompletionToken&& token = CompletionToken{});
     template <
-        asio::completion_token_for<void(Expected<std::optional<std::pair<std::string, std::string>>>)> CompletionToken>
-    auto async_blpop(std::string_view key, const std::chrono::seconds& timeout, CompletionToken&& token);
-    template <
-        asio::completion_token_for<void(Expected<std::optional<std::pair<std::string, std::string>>>)> CompletionToken>
-    auto async_brpop(std::string_view key, const std::chrono::seconds& timeout, CompletionToken&& token);
+        asio::completion_token_for<void(Expected<std::vector<std::string>>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_lrange(std::string_view key, long long start, long long stop,
+                      CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<std::optional<std::string>>)> CompletionToken =
+                  asio::use_awaitable_t<>>
+    auto async_lpop(std::string_view key, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<std::optional<std::string>>)> CompletionToken =
+                  asio::use_awaitable_t<>>
+    auto async_rpop(std::string_view key, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_llen(std::string_view key, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<std::optional<std::pair<std::string, std::string>>>)>
+                  CompletionToken = asio::use_awaitable_t<>>
+    auto async_blpop(std::string_view key, const std::chrono::seconds& timeout,
+                     CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<std::optional<std::pair<std::string, std::string>>>)>
+                  CompletionToken = asio::use_awaitable_t<>>
+    auto async_brpop(std::string_view key, const std::chrono::seconds& timeout,
+                     CompletionToken&& token = CompletionToken{});
 
     // SET commands
-    template <StringSequence Input, asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_sadd(std::string_view key, Input&& input, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<std::vector<std::string>>)> CompletionToken>
-    auto async_smembers(std::string_view key, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_sismember(std::string_view key, std::string_view member, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_scard(std::string_view key, CompletionToken&& token);
+    template <StringSequence Input,
+              asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_sadd(std::string_view key, Input&& input, CompletionToken&& token = CompletionToken{});
+    template <
+        asio::completion_token_for<void(Expected<std::vector<std::string>>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_smembers(std::string_view key, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_sismember(std::string_view key, std::string_view member, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_scard(std::string_view key, CompletionToken&& token = CompletionToken{});
     template <typename Result = std::set<std::string>,
-              asio::completion_token_for<void(Expected<Result>)> CompletionToken>
-    auto async_spop(std::string_view key, const std::optional<long long>& count, CompletionToken&& token);
+              asio::completion_token_for<void(Expected<Result>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_spop(std::string_view key, const std::optional<long long>& count,
+                    CompletionToken&& token = CompletionToken{});
 
-    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
+    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
     auto async_zadd(std::string_view key, std::string_view member, double score, sw::redis::UpdateType type,
-                    bool changed, CompletionToken&& token);
-    template <typename Input, asio::completion_token_for<void(Expected<long long>)> CompletionToken>
+                    bool changed, CompletionToken&& token = CompletionToken{});
+    template <typename Input,
+              asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
     auto async_zadd(std::string_view key, Input&& input, sw::redis::UpdateType type, bool changed,
-                    CompletionToken&& token);
+                    CompletionToken&& token = CompletionToken{});
     template <typename Result = std::vector<std::pair<std::string, double>>,
-              asio::completion_token_for<void(Expected<Result>)> CompletionToken>
+              asio::completion_token_for<void(Expected<Result>)> CompletionToken = asio::use_awaitable_t<>>
     auto async_zrangebyscore(std::string_view key, double min, double max, bool withscores, long long offset,
-                             long long count, CompletionToken&& token);
+                             long long count, CompletionToken&& token = CompletionToken{});
 
     // lua
-    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken>
-    auto async_function_load(std::string_view code, bool replace, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken>
-    auto async_function_delete(std::string_view lib_name, CompletionToken&& token);
+    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_function_load(std::string_view code, bool replace, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_function_delete(std::string_view lib_name, CompletionToken&& token = CompletionToken{});
     template <typename Result, StringSequence Keys, StringSequence Args,
-              asio::completion_token_for<void(Expected<Result>)> CompletionToken>
-    auto async_fcall(std::string_view func, Keys&& keys, Args&& args, CompletionToken&& token);
+              asio::completion_token_for<void(Expected<Result>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_fcall(std::string_view func, Keys&& keys, Args&& args, CompletionToken&& token = CompletionToken{});
     template <typename Result, StringSequence Keys, StringSequence Args,
-              asio::completion_token_for<void(Expected<Result>)> CompletionToken>
-    auto async_eval(std::string_view script, Keys&& keys, Args&& args, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken>
-    auto async_script_load(std::string_view script, CompletionToken&& token);
+              asio::completion_token_for<void(Expected<Result>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_eval(std::string_view script, Keys&& keys, Args&& args, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_script_load(std::string_view script, CompletionToken&& token = CompletionToken{});
     template <typename Result, StringSequence Keys, StringSequence Args,
-              asio::completion_token_for<void(Expected<Result>)> CompletionToken>
-    auto async_evalsha(std::string_view script, Keys&& keys, Args&& args, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken>
-    auto async_script_flush(CompletionToken&& token);
+              asio::completion_token_for<void(Expected<Result>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_evalsha(std::string_view script, Keys&& keys, Args&& args, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_script_flush(CompletionToken&& token = CompletionToken{});
 
-    template <typename RET, StringSequence Input, asio::completion_token_for<void(Expected<RET>)> CompletionToken>
-    auto async_command(Input&& input, CompletionToken&& token);
+    template <typename RET, StringSequence Input,
+              asio::completion_token_for<void(Expected<RET>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_command(Input&& input, CompletionToken&& token = CompletionToken{});
 
-    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_publish(std::string_view channel, std::string_view message, CompletionToken&& token);
-    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken>
-    auto async_spublish(std::string_view channel, std::string_view message, CompletionToken&& token);
+    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_publish(std::string_view channel, std::string_view message, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_spublish(std::string_view channel, std::string_view message,
+                        CompletionToken&& token = CompletionToken{});
 
     auto& ref() { return m_redis; }
     auto& pool() { return m_pool; }
@@ -226,7 +255,7 @@ class Redis final
     auto register_slot(H&& handler);
     template <typename R, typename H, typename F>
     void process(const std::shared_ptr<asio::io_context>& io_context, std::shared_ptr<bool> cancelled, H&& h, F&& fut);
-    template <typename RET, StringSequence Input, typename Handler>
+    template <typename RET, typename Input, typename Handler>
     void call_command(const Input& cmd, Handler&& handler);
 
     std::unique_ptr<REDIS> m_redis;
@@ -235,7 +264,7 @@ class Redis final
 };
 
 template <typename REDIS>
-template <typename RET, StringSequence Input, typename Handler>
+template <typename RET, typename Input, typename Handler>
 inline void Redis<REDIS>::call_command(const Input& cmd, Handler&& handler)
 {
     auto [h, io_context, cancelled] = register_slot(std::forward<Handler>(handler));
@@ -288,7 +317,14 @@ inline void Redis<REDIS>::process(const std::shared_ptr<asio::io_context>& io_co
                    {
                        if constexpr (!std::is_void_v<R>)
                        {
-                           result = fut.get();
+                           if constexpr (std::is_arithmetic_v<R>)
+                           {
+                               result = fut.get();
+                           }
+                           else
+                           {
+                               result = std::move(fut.get());
+                           }
                        }
                    }
                    catch (const sw::redis::TimeoutError& err)
@@ -390,7 +426,7 @@ inline auto Redis<REDIS>::async_xadd(std::string_view key, std::string_view id, 
             using RET = std::string;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, id, std::forward<Input>(input));
+        token, key, id, std::forward<Input>(input));
 }
 
 template <typename REDIS>
@@ -421,7 +457,7 @@ inline auto Redis<REDIS>::async_xread(std::string_view key, std::string_view id,
             using RET = std::unordered_map<std::string, ItemStream>;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, id, timeout, count);
+        token, key, id, timeout, count);
 }
 
 template <typename REDIS>
@@ -443,7 +479,7 @@ inline auto Redis<REDIS>::async_xrange(std::string_view key, std::string_view st
             using RET = ItemStream;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, start, end, count);
+        token, key, start, end, count);
 }
 
 template <typename REDIS>
@@ -462,7 +498,7 @@ inline auto Redis<REDIS>::async_get(std::string_view key, CompletionToken&& toke
                              process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
                          });
         },
-        std::forward<CompletionToken>(token), key);
+        token, key);
 }
 
 template <typename REDIS>
@@ -481,7 +517,7 @@ inline auto Redis<REDIS>::async_set(std::string_view key, std::string_view val, 
                              process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
                          });
         },
-        std::forward<CompletionToken>(token), key, val);
+        token, key, val);
 }
 
 template <typename REDIS>
@@ -494,10 +530,10 @@ inline auto Redis<REDIS>::async_setex(std::string_view key, const std::chrono::s
         {
             using RET = std::string;
             auto ttl_str = std::to_string(ttl.count());
-            std::vector<std::string_view> cmd{"SETEX", key, ttl_str, val};
+            std::initializer_list<std::string_view> cmd{"SETEX", key, ttl_str, val};
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, val, ttl);
+        token, key, val, ttl);
 }
 
 template <typename REDIS>
@@ -516,7 +552,7 @@ inline auto Redis<REDIS>::async_del(std::string_view key, CompletionToken&& toke
                              process<long long>(io_context, std::move(cancelled), std::move(h), std::move(fut));
                          });
         },
-        std::forward<CompletionToken>(token), key);
+        token, key);
 }
 
 template <typename REDIS>
@@ -535,7 +571,7 @@ inline auto Redis<REDIS>::async_del(Input&& input, CompletionToken&& token)
                              process<long long>(io_context, std::move(cancelled), std::move(h), std::move(fut));
                          });
         },
-        std::forward<CompletionToken>(token), std::forward<Input>(input));
+        token, std::forward<Input>(input));
 }
 
 template <typename REDIS>
@@ -550,7 +586,7 @@ inline auto Redis<REDIS>::async_exists(Input&& input, CompletionToken&& token)
             using RET = long long;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), std::forward<Input>(input));
+        token, std::forward<Input>(input));
 }
 
 template <typename REDIS>
@@ -563,10 +599,10 @@ inline auto Redis<REDIS>::async_expire(std::string_view key, const std::chrono::
         {
             using RET = bool;
             auto coutnt_str = std::to_string(timeout.count());
-            std::vector<std::string_view> cmd{"expire", key, coutnt_str};
+            std::initializer_list<std::string_view> cmd{"EXPIRE", key, coutnt_str};
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, timeout);
+        token, key, timeout);
 }
 
 template <typename REDIS>
@@ -586,7 +622,7 @@ inline auto Redis<REDIS>::async_hset(std::string_view key, std::string_view fiel
                               process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
                           });
         },
-        std::forward<CompletionToken>(token), key, field, val);
+        token, key, field, val);
 }
 
 template <typename REDIS>
@@ -605,7 +641,7 @@ inline auto Redis<REDIS>::async_hmset(std::string_view key, const Input& m, Comp
             using RET = void;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, m);
+        token, key, m);
 }
 
 template <typename REDIS>
@@ -625,7 +661,7 @@ inline auto Redis<REDIS>::async_hgetall(std::string_view key, CompletionToken&& 
                                                             std::move(fut));
                                            });
         },
-        std::forward<CompletionToken>(token), key);
+        token, key);
 }
 
 template <typename REDIS>
@@ -641,7 +677,7 @@ inline auto Redis<REDIS>::async_hmget(std::string_view key, Input&& input, Compl
             cmd.insert(cmd.end(), input.begin(), input.end());
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, std::forward<Input>(input));
+        token, key, std::forward<Input>(input));
 }
 
 template <typename REDIS>
@@ -652,10 +688,10 @@ inline auto Redis<REDIS>::async_incr(std::string_view key, CompletionToken&& tok
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
             using RET = long long;
-            std::vector<std::string_view> cmd{"INCR", key};
+            std::initializer_list<std::string_view> cmd{"INCR", key};
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key);
+        token, key);
 }
 
 template <typename REDIS>
@@ -667,10 +703,10 @@ inline auto Redis<REDIS>::async_incrby(std::string_view key, long long increment
         {
             using RET = long long;
             auto str = std::to_string(increment);
-            std::vector<std::string_view> cmd{"INCRBY", key, str};
+            std::initializer_list<std::string_view> cmd{"INCRBY", key, str};
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, increment);
+        token, key, increment);
 }
 
 template <typename REDIS>
@@ -681,10 +717,10 @@ inline auto Redis<REDIS>::async_ttl(std::string_view key, CompletionToken&& toke
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
             using RET = long long;
-            std::vector<std::string_view> cmd{"TTL", key};
+            std::initializer_list<std::string_view> cmd{"TTL", key};
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key);
+        token, key);
 }
 
 template <typename REDIS>
@@ -700,7 +736,7 @@ inline auto Redis<REDIS>::async_mget(Input&& input, CompletionToken&& token)
             cmd.insert(cmd.end(), input.begin(), input.end());
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), std::forward<Input>(input));
+        token, std::forward<Input>(input));
 }
 
 template <typename REDIS>
@@ -711,10 +747,10 @@ inline auto Redis<REDIS>::async_append(std::string_view key, std::string_view st
         [this]<typename Handler>(Handler&& handler, auto key, auto str) mutable
         {
             using RET = long long;
-            std::vector<std::string_view> cmd{"APPEND", key, str};
+            std::initializer_list<std::string_view> cmd{"APPEND", key, str};
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, str);
+        token, key, str);
 }
 
 template <typename REDIS>
@@ -729,7 +765,7 @@ inline auto Redis<REDIS>::async_hdel(std::string_view key, Input&& input, Comple
             cmd.insert(cmd.end(), input.begin(), input.end());
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, std::forward<Input>(input));
+        token, key, std::forward<Input>(input));
 }
 
 template <typename REDIS>
@@ -741,7 +777,7 @@ inline auto Redis<REDIS>::async_command(Input&& input, CompletionToken&& token)
         {
             this->call_command<RET>(input, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), std::forward<Input>(input));
+        token, std::forward<Input>(input));
 }
 
 template <typename REDIS>
@@ -756,7 +792,7 @@ inline auto Redis<REDIS>::async_lpush(std::string_view key, Input&& input, Compl
             cmd.insert(cmd.end(), input.begin(), input.end());
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, std::forward<Input>(input));
+        token, key, std::forward<Input>(input));
 }
 
 template <typename REDIS>
@@ -771,7 +807,7 @@ inline auto Redis<REDIS>::async_rpush(std::string_view key, Input&& input, Compl
             cmd.insert(cmd.end(), input.begin(), input.end());
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, std::forward<Input>(input));
+        token, key, std::forward<Input>(input));
 }
 
 template <typename REDIS>
@@ -783,11 +819,11 @@ inline auto Redis<REDIS>::async_lrange(std::string_view key, long long start, lo
         {
             auto start_str = std::to_string(start);
             auto stop_str = std::to_string(stop);
-            std::vector<std::string_view> cmd{"LRANGE", key, start_str, stop_str};
+            std::initializer_list<std::string_view> cmd{"LRANGE", key, start_str, stop_str};
             using RET = std::vector<std::string>;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, start, stop);
+        token, key, start, stop);
 }
 
 template <typename REDIS>
@@ -797,11 +833,11 @@ inline auto Redis<REDIS>::async_lpop(std::string_view key, CompletionToken&& tok
     return asio::async_initiate<CompletionToken, void(Expected<std::optional<std::string>>)>(
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
-            std::vector<std::string_view> cmd{"LPOP", key};
+            std::initializer_list<std::string_view> cmd{"LPOP", key};
             using RET = std::optional<std::string>;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key);
+        token, key);
 }
 
 template <typename REDIS>
@@ -814,11 +850,11 @@ inline auto Redis<REDIS>::async_blpop(std::string_view key, const std::chrono::s
         [this]<typename Handler>(Handler&& handler, auto key, auto timeout) mutable
         {
             auto timeout_str = std::to_string(timeout.count());
-            std::vector<std::string_view> cmd{"BLPOP", key, timeout_str};
+            std::initializer_list<std::string_view> cmd{"BLPOP", key, timeout_str};
             using RET = std::optional<std::pair<std::string, std::string>>;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, timeout);
+        token, key, timeout);
 }
 
 template <typename REDIS>
@@ -831,11 +867,11 @@ inline auto Redis<REDIS>::async_brpop(std::string_view key, const std::chrono::s
         [this]<typename Handler>(Handler&& handler, auto key, auto timeout) mutable
         {
             auto timeout_str = std::to_string(timeout.count());
-            std::vector<std::string_view> cmd{"BRPOP", key, timeout_str};
+            std::initializer_list<std::string_view> cmd{"BRPOP", key, timeout_str};
             using RET = std::optional<std::pair<std::string, std::string>>;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, timeout);
+        token, key, timeout);
 }
 
 template <typename REDIS>
@@ -845,11 +881,11 @@ inline auto Redis<REDIS>::async_rpop(std::string_view key, CompletionToken&& tok
     return asio::async_initiate<CompletionToken, void(Expected<std::optional<std::string>>)>(
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
-            std::vector<std::string_view> cmd{"RPOP", key};
+            std::initializer_list<std::string_view> cmd{"RPOP", key};
             using RET = std::optional<std::string>;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key);
+        token, key);
 }
 
 template <typename REDIS>
@@ -859,11 +895,11 @@ inline auto Redis<REDIS>::async_llen(std::string_view key, CompletionToken&& tok
     return asio::async_initiate<CompletionToken, void(Expected<long long>)>(
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
-            std::vector<std::string_view> cmd{"LLEN", key};
+            std::initializer_list<std::string_view> cmd{"LLEN", key};
             using RET = long long;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key);
+        token, key);
 }
 
 template <typename REDIS>
@@ -882,7 +918,7 @@ inline auto Redis<REDIS>::async_xgroup_create(std::string_view key, std::string_
             using RET = void;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, group, id, mkstream);
+        token, key, group, id, mkstream);
 }
 
 template <typename REDIS>
@@ -920,7 +956,7 @@ inline auto Redis<REDIS>::async_xreadgroup(std::string_view group, std::string_v
             using RET = std::unordered_map<std::string, ItemStream>;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), group, consumer, std::move(block), key, id, count, noack);
+        token, group, consumer, std::move(block), key, id, count, noack);
 }
 
 template <typename REDIS>
@@ -936,7 +972,7 @@ inline auto Redis<REDIS>::async_xack(std::string_view key, std::string_view grou
             using RET = long long;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, group, std::forward<Input>(input));
+        token, key, group, std::forward<Input>(input));
 }
 
 template <typename REDIS>
@@ -951,7 +987,7 @@ inline auto Redis<REDIS>::async_sadd(std::string_view key, Input&& input, Comple
             using RET = long long;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, std::forward<Input>(input));
+        token, key, std::forward<Input>(input));
 }
 
 template <typename REDIS>
@@ -961,11 +997,11 @@ inline auto Redis<REDIS>::async_smembers(std::string_view key, CompletionToken&&
     return asio::async_initiate<CompletionToken, void(Expected<std::vector<std::string>>)>(
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
-            std::vector<std::string_view> cmd{"SMEMBERS", key};
+            std::initializer_list<std::string_view> cmd{"SMEMBERS", key};
             using RET = std::vector<std::string>;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key);
+        token, key);
 }
 
 template <typename REDIS>
@@ -975,11 +1011,11 @@ inline auto Redis<REDIS>::async_sismember(std::string_view key, std::string_view
     return asio::async_initiate<CompletionToken, void(Expected<long long>)>(
         [this]<typename Handler>(Handler&& handler, auto key, auto member) mutable
         {
-            std::vector<std::string_view> cmd{"SISMEMBER", key, member};
+            std::initializer_list<std::string_view> cmd{"SISMEMBER", key, member};
             using RET = long long;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, member);
+        token, key, member);
 }
 
 template <typename REDIS>
@@ -989,11 +1025,11 @@ inline auto Redis<REDIS>::async_scard(std::string_view key, CompletionToken&& to
     return asio::async_initiate<CompletionToken, void(Expected<long long>)>(
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
-            std::vector<std::string_view> cmd{"SCARD", key};
+            std::initializer_list<std::string_view> cmd{"SCARD", key};
             using RET = long long;
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key);
+        token, key);
 }
 
 template <typename REDIS>
@@ -1018,7 +1054,7 @@ inline auto Redis<REDIS>::async_spop(std::string_view key, const std::optional<l
             }
             this->call_command<Result>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, count);
+        token, key, count);
 }
 
 template <typename REDIS>
@@ -1039,7 +1075,7 @@ inline auto Redis<REDIS>::async_zadd(std::string_view key, std::string_view memb
                               process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
                           });
         },
-        std::forward<CompletionToken>(token), key, member, score, type, changed);
+        token, key, member, score, type, changed);
 }
 
 template <typename REDIS>
@@ -1059,7 +1095,7 @@ inline auto Redis<REDIS>::async_zadd(std::string_view key, Input&& input, sw::re
                               process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
                           });
         },
-        std::forward<CompletionToken>(token), key, std::forward<Input>(input), type, changed);
+        token, key, std::forward<Input>(input), type, changed);
 }
 
 template <typename REDIS>
@@ -1091,7 +1127,7 @@ inline auto Redis<REDIS>::async_zrangebyscore(std::string_view key, double min, 
             }
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key, min, max, withscores, offset, count);
+        token, key, min, max, withscores, offset, count);
 }
 
 template <typename REDIS>
@@ -1110,7 +1146,7 @@ inline auto Redis<REDIS>::async_function_load(std::string_view code, bool replac
             cmd.emplace_back(code);
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), code, replace);
+        token, code, replace);
 }
 
 template <typename REDIS>
@@ -1121,10 +1157,10 @@ inline auto Redis<REDIS>::async_function_delete(std::string_view lib_name, Compl
         [this]<typename Handler>(Handler&& handler, std::string_view lib_name) mutable
         {
             using RET = std::string;
-            std::vector<std::string_view> cmd{"FUNCTION", "DELETE", lib_name};
+            std::initializer_list<std::string_view> cmd{"FUNCTION", "DELETE", lib_name};
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), lib_name);
+        token, lib_name);
 }
 
 template <typename REDIS>
@@ -1142,7 +1178,7 @@ inline auto Redis<REDIS>::async_fcall(std::string_view func, Keys&& keys, Args&&
             cmd.insert(cmd.end(), args.begin(), args.end());
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), func, std::forward<Keys>(keys), std::forward<Args>(args));
+        token, func, std::forward<Keys>(keys), std::forward<Args>(args));
 }
 
 template <typename REDIS>
@@ -1160,7 +1196,7 @@ inline auto Redis<REDIS>::async_eval(std::string_view script, Keys&& keys, Args&
             cmd.insert(cmd.end(), args.begin(), args.end());
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), script, std::forward<Keys>(keys), std::forward<Args>(args));
+        token, script, std::forward<Keys>(keys), std::forward<Args>(args));
 }
 
 template <typename REDIS>
@@ -1171,10 +1207,10 @@ inline auto Redis<REDIS>::async_script_load(std::string_view script, CompletionT
         [this]<typename Handler>(Handler&& handler, std::string_view script) mutable
         {
             using RET = std::string;
-            std::vector<std::string_view> cmd{"SCRIPT", "LOAD", script};
+            std::initializer_list<std::string_view> cmd{"SCRIPT", "LOAD", script};
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), script);
+        token, script);
 }
 
 template <typename REDIS>
@@ -1192,7 +1228,7 @@ inline auto Redis<REDIS>::async_evalsha(std::string_view sha1, Keys&& keys, Args
             cmd.insert(cmd.end(), args.begin(), args.end());
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), sha1, std::forward<Keys>(keys), std::forward<Args>(args));
+        token, sha1, std::forward<Keys>(keys), std::forward<Args>(args));
 }
 
 template <typename REDIS>
@@ -1206,7 +1242,7 @@ inline auto Redis<REDIS>::async_script_flush(CompletionToken&& token)
             static std::vector<std::string_view> cmd{"SCRIPT", "FLUSH"};
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token));
+        token);
 }
 
 template <typename REDIS>
@@ -1217,10 +1253,10 @@ inline auto Redis<REDIS>::async_publish(std::string_view channel, std::string_vi
         [this]<typename Handler>(Handler&& handler, auto channel, auto message) mutable
         {
             using RET = long long;
-            std::vector<std::string_view> cmd{"PUBLISH", channel, message};
+            std::initializer_list<std::string_view> cmd{"PUBLISH", channel, message};
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), channel, message);
+        token, channel, message);
 }
 
 template <typename REDIS>
@@ -1231,10 +1267,10 @@ inline auto Redis<REDIS>::async_spublish(std::string_view channel, std::string_v
         [this]<typename Handler>(Handler&& handler, auto channel, auto message) mutable
         {
             using RET = long long;
-            std::vector<std::string_view> cmd{"SPUBLISH", channel, message};
+            std::initializer_list<std::string_view> cmd{"SPUBLISH", channel, message};
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), channel, message);
+        token, channel, message);
 }
 template <typename REDIS>
 template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken>
@@ -1244,10 +1280,10 @@ inline auto Redis<REDIS>::async_echo(std::string_view key, CompletionToken&& tok
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
             using RET = std::string;
-            std::vector<std::string_view> cmd{"ECHO", key};
+            std::initializer_list<std::string_view> cmd{"ECHO", key};
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key);
+        token, key);
 }
 
 template <typename REDIS>
@@ -1258,10 +1294,10 @@ inline auto Redis<REDIS>::async_ping(std::string_view key, CompletionToken&& tok
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
             using RET = std::string;
-            std::vector<std::string_view> cmd{"PING", key};
+            std::initializer_list<std::string_view> cmd{"PING", key};
             this->call_command<RET>(cmd, std::forward<Handler>(handler));
         },
-        std::forward<CompletionToken>(token), key);
+        token, key);
 }
 
 template <typename REDIS>
@@ -1277,7 +1313,7 @@ inline auto Redis<REDIS>::async_ping(CompletionToken&& token)
                 static std::vector<std::string> cmd{"PING"};
                 this->call_command<RET>(cmd, std::forward<Handler>(handler));
             },
-            std::forward<CompletionToken>(token));
+            token);
     }
     else
     {
