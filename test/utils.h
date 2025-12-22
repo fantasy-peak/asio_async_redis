@@ -53,6 +53,6 @@ inline auto async_redis = std::make_unique<asio_async_redis::Redis<>>(sentinel, 
                                                                       create_connection_opts(),
                                                                       sw::redis::ConnectionPoolOptions{}, nullptr, 1);
 #endif
-inline auto pool = std::make_unique<asio_async_redis::ContextPool>(1);
+inline auto pool = std::make_shared<asio_async_redis::ContextPool>(1);
 
 #endif
