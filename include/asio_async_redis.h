@@ -254,7 +254,7 @@ class Redis final
     template <typename H>
     auto register_slot(H&& handler);
     template <typename R, typename H, typename F>
-    void process(const std::shared_ptr<asio::io_context>& io_context, std::shared_ptr<bool> cancelled, H&& h, F&& fut);
+    void process(asio::io_context* io_context, std::shared_ptr<bool> cancelled, H&& h, F&& fut);
     template <typename RET, typename Input, typename Handler>
     void call_command(const Input& cmd, Handler&& handler);
 
@@ -301,8 +301,7 @@ inline void Redis<REDIS>::call_command(const Input& cmd, Handler&& handler)
 
 template <typename REDIS>
 template <typename R, typename H, typename F>
-inline void Redis<REDIS>::process(const std::shared_ptr<asio::io_context>& io_context, std::shared_ptr<bool> cancelled,
-                                  H&& h, F&& fut)
+inline void Redis<REDIS>::process(asio::io_context* io_context, std::shared_ptr<bool> cancelled, H&& h, F&& fut)
 {
     asio::post(*io_context,
                [this, cancelled = std::move(cancelled), h = std::forward<H>(h), fut = std::forward<F>(fut)] mutable
@@ -386,7 +385,7 @@ inline auto Redis<REDIS>::register_slot(H&& handler)
 {
     auto h = std::make_shared<H>(std::forward<H>(handler));
     auto cancelled = std::make_shared<bool>(false);
-    auto io_context = m_pool->getIoContextPtr();
+    auto io_context = m_pool->getIoContextRawPtr();
     auto slot = asio::get_associated_cancellation_slot(*h);
     if (slot.is_connected())
     {
@@ -411,7 +410,7 @@ inline auto Redis<REDIS>::register_slot(H&& handler)
                            });
             });
     }
-    return std::make_tuple(std::move(h), std::move(io_context), std::move(cancelled));
+    return std::make_tuple(std::move(h), io_context, std::move(cancelled));
 }
 
 template <typename REDIS>
@@ -491,12 +490,12 @@ inline auto Redis<REDIS>::async_get(std::string_view key, CompletionToken&& toke
         {
             using RET = std::optional<std::string>;
             auto [h, io_context, cancelled] = register_slot(std::forward<Handler>(handler));
-            m_redis->get(key,
-                         [io_context = std::move(io_context), h = std::move(h), cancelled = std::move(cancelled),
-                          this](std::future<RET>&& fut) mutable
-                         {
-                             process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
-                         });
+            m_redis->get(
+                key,
+                [io_context, h = std::move(h), cancelled = std::move(cancelled), this](std::future<RET>&& fut) mutable
+                {
+                    process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
+                });
         },
         token, key);
 }
@@ -510,12 +509,12 @@ inline auto Redis<REDIS>::async_set(std::string_view key, std::string_view val, 
         {
             using RET = bool;
             auto [h, io_context, cancelled] = register_slot(std::forward<Handler>(handler));
-            m_redis->set(key, val,
-                         [io_context = std::move(io_context), h = std::move(h), cancelled = std::move(cancelled),
-                          this](std::future<RET>&& fut) mutable
-                         {
-                             process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
-                         });
+            m_redis->set(
+                key, val,
+                [io_context, h = std::move(h), cancelled = std::move(cancelled), this](std::future<RET>&& fut) mutable
+                {
+                    process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
+                });
         },
         token, key, val);
 }
@@ -545,12 +544,12 @@ inline auto Redis<REDIS>::async_del(std::string_view key, CompletionToken&& toke
         {
             using RET = long long;
             auto [h, io_context, cancelled] = register_slot(std::forward<Handler>(handler));
-            m_redis->del(key,
-                         [io_context = std::move(io_context), h = std::move(h), cancelled = std::move(cancelled),
-                          this](std::future<RET>&& fut) mutable
-                         {
-                             process<long long>(io_context, std::move(cancelled), std::move(h), std::move(fut));
-                         });
+            m_redis->del(
+                key,
+                [io_context, h = std::move(h), cancelled = std::move(cancelled), this](std::future<RET>&& fut) mutable
+                {
+                    process<long long>(io_context, std::move(cancelled), std::move(h), std::move(fut));
+                });
         },
         token, key);
 }
@@ -564,12 +563,12 @@ inline auto Redis<REDIS>::async_del(Input&& input, CompletionToken&& token)
         {
             using RET = long long;
             auto [h, io_context, cancelled] = register_slot(std::forward<Handler>(handler));
-            m_redis->del(input.begin(), input.end(),
-                         [io_context = std::move(io_context), h = std::move(h), cancelled = std::move(cancelled),
-                          this](std::future<RET>&& fut) mutable
-                         {
-                             process<long long>(io_context, std::move(cancelled), std::move(h), std::move(fut));
-                         });
+            m_redis->del(
+                input.begin(), input.end(),
+                [io_context, h = std::move(h), cancelled = std::move(cancelled), this](std::future<RET>&& fut) mutable
+                {
+                    process<long long>(io_context, std::move(cancelled), std::move(h), std::move(fut));
+                });
         },
         token, std::forward<Input>(input));
 }
@@ -615,12 +614,12 @@ inline auto Redis<REDIS>::async_hset(std::string_view key, std::string_view fiel
         {
             using RET = long long;
             auto [h, io_context, cancelled] = register_slot(std::forward<Handler>(handler));
-            m_redis->hset(key, field, val,
-                          [io_context = std::move(io_context), h = std::move(h), cancelled = std::move(cancelled),
-                           this](std::future<RET>&& fut) mutable
-                          {
-                              process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
-                          });
+            m_redis->hset(
+                key, field, val,
+                [io_context, h = std::move(h), cancelled = std::move(cancelled), this](std::future<RET>&& fut) mutable
+                {
+                    process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
+                });
         },
         token, key, field, val);
 }
@@ -653,13 +652,12 @@ inline auto Redis<REDIS>::async_hgetall(std::string_view key, CompletionToken&& 
         {
             using RET = std::unordered_map<std::string, std::string>;
             auto [h, io_context, cancelled] = register_slot(std::forward<Handler>(handler));
-            m_redis->template hgetall<RET>(key,
-                                           [io_context = std::move(io_context), h = std::move(h),
-                                            cancelled = std::move(cancelled), this](std::future<RET>&& fut) mutable
-                                           {
-                                               process<RET>(io_context, std::move(cancelled), std::move(h),
-                                                            std::move(fut));
-                                           });
+            m_redis->template hgetall<RET>(
+                key,
+                [io_context, h = std::move(h), cancelled = std::move(cancelled), this](std::future<RET>&& fut) mutable
+                {
+                    process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
+                });
         },
         token, key);
 }
@@ -1068,12 +1066,12 @@ inline auto Redis<REDIS>::async_zadd(std::string_view key, std::string_view memb
         {
             using RET = long long;
             auto [h, io_context, cancelled] = register_slot(std::forward<Handler>(handler));
-            m_redis->zadd(key, member, score, type, changed,
-                          [io_context = std::move(io_context), h = std::move(h), cancelled = std::move(cancelled),
-                           this](std::future<RET>&& fut) mutable
-                          {
-                              process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
-                          });
+            m_redis->zadd(
+                key, member, score, type, changed,
+                [io_context, h = std::move(h), cancelled = std::move(cancelled), this](std::future<RET>&& fut) mutable
+                {
+                    process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
+                });
         },
         token, key, member, score, type, changed);
 }
@@ -1088,12 +1086,12 @@ inline auto Redis<REDIS>::async_zadd(std::string_view key, Input&& input, sw::re
         {
             using RET = long long;
             auto [h, io_context, cancelled] = register_slot(std::forward<Handler>(handler));
-            m_redis->zadd(key, input.begin(), input.end(), type, changed,
-                          [io_context = std::move(io_context), h = std::move(h), cancelled = std::move(cancelled),
-                           this](std::future<RET>&& fut) mutable
-                          {
-                              process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
-                          });
+            m_redis->zadd(
+                key, input.begin(), input.end(), type, changed,
+                [io_context, h = std::move(h), cancelled = std::move(cancelled), this](std::future<RET>&& fut) mutable
+                {
+                    process<RET>(io_context, std::move(cancelled), std::move(h), std::move(fut));
+                });
         },
         token, key, std::forward<Input>(input), type, changed);
 }

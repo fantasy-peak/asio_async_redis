@@ -93,6 +93,12 @@ class ContextPool final
         return m_io_contexts[index % m_io_contexts.size()];
     }
 
+    auto getIoContextRawPtr()
+    {
+        size_t index = m_next_io_context.fetch_add(1, std::memory_order_relaxed);
+        return m_io_contexts[index % m_io_contexts.size()].get();
+    }
+
   private:
     std::vector<std::shared_ptr<asio::io_context>> m_io_contexts;
     std::list<asio::any_io_executor> m_work;
