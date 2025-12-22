@@ -14,6 +14,9 @@
 #include <sw/redis++/async_redis_cluster.h>
 
 #include <atomic>
+#include <chrono>
+#include <string>
+#include <string_view>
 
 #if __has_include(<expected>)
 #include <expected>
@@ -193,5 +196,51 @@ concept StringKVContainer = std::same_as<std::decay_t<T>, std::unordered_map<std
 template <typename T>
 concept REDIS = std::is_same_v<std::decay_t<T>, sw::redis::AsyncRedis> ||
                 std::is_same_v<std::decay_t<T>, sw::redis::AsyncRedisCluster>;
+
+class CmdArgs
+{
+  public:
+    CmdArgs() = default;
+
+    CmdArgs& operator<<(long long input)
+    {
+        m_args.push_back(std::to_string(input));
+        m_cmds.emplace_back(m_args.back());
+        return *this;
+    }
+
+    CmdArgs& operator<<(std::string_view input)
+    {
+        m_cmds.emplace_back(input);
+        return *this;
+    }
+
+    CmdArgs& operator<<(const std::chrono::seconds& input)
+    {
+        m_args.push_back(std::to_string(input.count()));
+        m_cmds.emplace_back(m_args.back());
+        return *this;
+    }
+
+    CmdArgs& operator<<(const std::chrono::milliseconds& input)
+    {
+        m_args.push_back(std::to_string(input.count()));
+        m_cmds.emplace_back(m_args.back());
+        return *this;
+    }
+
+    template <StringSequence Input>
+    CmdArgs& operator<<(const Input& input)
+    {
+        m_cmds.insert(m_cmds.end(), input.begin(), input.end());
+        return *this;
+    }
+
+    const auto& operator()() { return m_cmds; }
+
+  private:
+    std::vector<std::string_view> m_cmds;
+    std::list<std::string> m_args;
+};
 
 }  // namespace asio_async_redis

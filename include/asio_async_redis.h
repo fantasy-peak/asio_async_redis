@@ -448,10 +448,10 @@ inline auto Redis<REDIS>::async_xadd(std::string_view key, std::string_view id, 
     return asio::async_initiate<CompletionToken, void(Expected<std::string>)>(
         [this]<typename Handler>(Handler&& handler, auto key, auto id, auto&& input) mutable
         {
-            std::vector<std::string_view> cmd{"XADD", key, id};
-            cmd.insert(cmd.end(), input.begin(), input.end());
+            CmdArgs args;
+            args << "XADD" << key << id << input;
             using RET = std::string;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, id, std::forward<Input>(input));
 }
@@ -465,24 +465,15 @@ inline auto Redis<REDIS>::async_xread(std::string_view key, std::string_view id,
     return asio::async_initiate<CompletionToken, void(Expected<std::unordered_map<std::string, ItemStream>>)>(
         [this]<typename Handler>(Handler&& handler, auto key, auto id, auto timeout, auto count) mutable
         {
-            auto count_str = std::to_string(count);
-            std::vector<std::string_view> cmd{
-                "XREAD",
-                "COUNT",
-                count_str,
-            };
-            std::string timeout_str;
+            CmdArgs args;
+            args << "XREAD" << "COUNT" << count;
             if (timeout.has_value())
             {
-                timeout_str = std::to_string(timeout.value().count());
-                cmd.emplace_back("BLOCK");
-                cmd.emplace_back(timeout_str);
+                args << "BLOCK" << timeout.value();
             }
-            cmd.emplace_back("STREAMS");
-            cmd.emplace_back(key);
-            cmd.emplace_back(id);
+            args << "STREAMS" << key << id;
             using RET = std::unordered_map<std::string, ItemStream>;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, id, timeout, count);
 }
@@ -495,16 +486,14 @@ inline auto Redis<REDIS>::async_xrange(std::string_view key, std::string_view st
     return asio::async_initiate<CompletionToken, void(Expected<ItemStream>)>(
         [this]<typename Handler>(Handler&& handler, auto key, auto start, auto end, auto count) mutable
         {
-            std::vector<std::string_view> cmd{"XRANGE", key, start, end};
-            std::string count_str;
+            CmdArgs args;
+            args << "XRANGE" << key << start << end;
             if (count.has_value())
             {
-                count_str = std::to_string(count.value());
-                cmd.emplace_back("COUNT");
-                cmd.emplace_back(count_str);
+                args << "COUNT" << count.value();
             }
             using RET = ItemStream;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, start, end, count);
 }
@@ -556,9 +545,9 @@ inline auto Redis<REDIS>::async_setex(std::string_view key, const std::chrono::s
         [this]<typename Handler>(Handler&& handler, auto key, auto val, auto ttl) mutable
         {
             using RET = std::string;
-            auto ttl_str = std::to_string(ttl.count());
-            std::initializer_list<std::string_view> cmd{"SETEX", key, ttl_str, val};
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "SETEX" << key << ttl << val;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, val, ttl);
 }
@@ -608,10 +597,10 @@ inline auto Redis<REDIS>::async_exists(Input&& input, CompletionToken&& token)
     return asio::async_initiate<CompletionToken, void(Expected<long long>)>(
         [this]<typename Handler>(Handler&& handler, auto&& input) mutable
         {
-            std::vector<std::string_view> cmd{"exists"};
-            cmd.insert(cmd.end(), input.begin(), input.end());
+            CmdArgs args;
+            args << "EXISTS" << input;
             using RET = long long;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, std::forward<Input>(input));
 }
@@ -625,9 +614,9 @@ inline auto Redis<REDIS>::async_expire(std::string_view key, const std::chrono::
         [this]<typename Handler>(Handler&& handler, auto key, auto timeout) mutable
         {
             using RET = bool;
-            auto coutnt_str = std::to_string(timeout.count());
-            std::initializer_list<std::string_view> cmd{"EXPIRE", key, coutnt_str};
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "EXPIRE" << key << timeout;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, timeout);
 }
@@ -699,9 +688,9 @@ inline auto Redis<REDIS>::async_hmget(std::string_view key, Input&& input, Compl
         [this]<typename Handler>(Handler&& handler, auto key, auto&& input) mutable
         {
             using RET = std::vector<std::optional<std::string>>;
-            std::vector<std::string_view> cmd{"HMGET", key};
-            cmd.insert(cmd.end(), input.begin(), input.end());
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "HMGET" << key << input;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, std::forward<Input>(input));
 }
@@ -714,8 +703,9 @@ inline auto Redis<REDIS>::async_incr(std::string_view key, CompletionToken&& tok
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
             using RET = long long;
-            std::initializer_list<std::string_view> cmd{"INCR", key};
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "INCR" << key;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key);
 }
@@ -728,9 +718,9 @@ inline auto Redis<REDIS>::async_incrby(std::string_view key, long long increment
         [this]<typename Handler>(Handler&& handler, auto key, auto increment) mutable
         {
             using RET = long long;
-            auto str = std::to_string(increment);
-            std::initializer_list<std::string_view> cmd{"INCRBY", key, str};
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "INCRBY" << key << increment;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, increment);
 }
@@ -743,8 +733,9 @@ inline auto Redis<REDIS>::async_ttl(std::string_view key, CompletionToken&& toke
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
             using RET = long long;
-            std::initializer_list<std::string_view> cmd{"TTL", key};
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "TTL" << key;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key);
 }
@@ -758,9 +749,9 @@ inline auto Redis<REDIS>::async_mget(Input&& input, CompletionToken&& token)
         [this]<typename Handler>(Handler&& handler, auto&& input) mutable
         {
             using RET = std::vector<std::optional<std::string>>;
-            std::vector<std::string_view> cmd{"MGET"};
-            cmd.insert(cmd.end(), input.begin(), input.end());
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "MGET" << input;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, std::forward<Input>(input));
 }
@@ -773,8 +764,9 @@ inline auto Redis<REDIS>::async_append(std::string_view key, std::string_view st
         [this]<typename Handler>(Handler&& handler, auto key, auto str) mutable
         {
             using RET = long long;
-            std::initializer_list<std::string_view> cmd{"APPEND", key, str};
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "APPEND" << key << str;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, str);
 }
@@ -787,9 +779,9 @@ inline auto Redis<REDIS>::async_hdel(std::string_view key, Input&& input, Comple
         [this]<typename Handler>(Handler&& handler, auto key, auto&& input) mutable
         {
             using RET = long long;
-            std::vector<std::string_view> cmd{"HDEL", key};
-            cmd.insert(cmd.end(), input.begin(), input.end());
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "HDEL" << key << input;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, std::forward<Input>(input));
 }
@@ -814,9 +806,9 @@ inline auto Redis<REDIS>::async_lpush(std::string_view key, Input&& input, Compl
         [this]<typename Handler>(Handler&& handler, auto key, auto&& input) mutable
         {
             using RET = long long;
-            std::vector<std::string_view> cmd{"LPUSH", key};
-            cmd.insert(cmd.end(), input.begin(), input.end());
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "LPUSH" << key << input;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, std::forward<Input>(input));
 }
@@ -829,9 +821,9 @@ inline auto Redis<REDIS>::async_rpush(std::string_view key, Input&& input, Compl
         [this]<typename Handler>(Handler&& handler, auto key, auto&& input) mutable
         {
             using RET = long long;
-            std::vector<std::string_view> cmd{"RPUSH", key};
-            cmd.insert(cmd.end(), input.begin(), input.end());
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "RPUSH" << key << input;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, std::forward<Input>(input));
 }
@@ -843,11 +835,10 @@ inline auto Redis<REDIS>::async_lrange(std::string_view key, long long start, lo
     return asio::async_initiate<CompletionToken, void(Expected<std::vector<std::string>>)>(
         [this]<typename Handler>(Handler&& handler, auto key, auto start, auto stop) mutable
         {
-            auto start_str = std::to_string(start);
-            auto stop_str = std::to_string(stop);
-            std::initializer_list<std::string_view> cmd{"LRANGE", key, start_str, stop_str};
+            CmdArgs args;
+            args << "LRANGE" << key << start << stop;
             using RET = std::vector<std::string>;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, start, stop);
 }
@@ -859,9 +850,10 @@ inline auto Redis<REDIS>::async_lpop(std::string_view key, CompletionToken&& tok
     return asio::async_initiate<CompletionToken, void(Expected<std::optional<std::string>>)>(
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
-            std::initializer_list<std::string_view> cmd{"LPOP", key};
+            CmdArgs args;
+            args << "LPOP" << key;
             using RET = std::optional<std::string>;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key);
 }
@@ -875,10 +867,10 @@ inline auto Redis<REDIS>::async_blpop(std::string_view key, const std::chrono::s
     return asio::async_initiate<CompletionToken, void(Expected<std::optional<std::pair<std::string, std::string>>>)>(
         [this]<typename Handler>(Handler&& handler, auto key, auto timeout) mutable
         {
-            auto timeout_str = std::to_string(timeout.count());
-            std::initializer_list<std::string_view> cmd{"BLPOP", key, timeout_str};
+            CmdArgs args;
+            args << "BLPOP" << key << timeout;
             using RET = std::optional<std::pair<std::string, std::string>>;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, timeout);
 }
@@ -892,10 +884,10 @@ inline auto Redis<REDIS>::async_brpop(std::string_view key, const std::chrono::s
     return asio::async_initiate<CompletionToken, void(Expected<std::optional<std::pair<std::string, std::string>>>)>(
         [this]<typename Handler>(Handler&& handler, auto key, auto timeout) mutable
         {
-            auto timeout_str = std::to_string(timeout.count());
-            std::initializer_list<std::string_view> cmd{"BRPOP", key, timeout_str};
+            CmdArgs args;
+            args << "BRPOP" << key << timeout;
             using RET = std::optional<std::pair<std::string, std::string>>;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, timeout);
 }
@@ -907,9 +899,10 @@ inline auto Redis<REDIS>::async_rpop(std::string_view key, CompletionToken&& tok
     return asio::async_initiate<CompletionToken, void(Expected<std::optional<std::string>>)>(
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
-            std::initializer_list<std::string_view> cmd{"RPOP", key};
+            CmdArgs args;
+            args << "RPOP" << key;
             using RET = std::optional<std::string>;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key);
 }
@@ -921,9 +914,10 @@ inline auto Redis<REDIS>::async_llen(std::string_view key, CompletionToken&& tok
     return asio::async_initiate<CompletionToken, void(Expected<long long>)>(
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
-            std::initializer_list<std::string_view> cmd{"LLEN", key};
+            CmdArgs args;
+            args << "LLEN" << key;
             using RET = long long;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key);
 }
@@ -936,13 +930,14 @@ inline auto Redis<REDIS>::async_xgroup_create(std::string_view key, std::string_
     return asio::async_initiate<CompletionToken, void(Expected<void>)>(
         [this]<typename Handler>(Handler&& handler, auto key, auto group, auto id, auto mkstream) mutable
         {
-            std::vector<std::string_view> cmd{"XGROUP", "CREATE", key, group, id};
+            CmdArgs args;
+            args << "XGROUP" << "CREATE" << key << group << id;
             if (mkstream)
             {
-                cmd.emplace_back("MKSTREAM");
+                args << "MKSTREAM";
             };
             using RET = void;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, group, id, mkstream);
 }
@@ -958,29 +953,23 @@ inline auto Redis<REDIS>::async_xreadgroup(std::string_view group, std::string_v
                                  auto count, auto noack) mutable
         {
             // XREADGROUP GROUP mygroup consumer1 COUNT 100 BLOCK 50 NOACK STREAMS mystream >
-            auto count_str = std::to_string(count);
-            std::string block_str;
-            std::vector<std::string_view> cmd{"XREADGROUP", "GROUP", group, consumer};
+            CmdArgs args;
+            args << "XREADGROUP" << "GROUP" << group << consumer;
             if (count > 0)
             {
-                cmd.emplace_back("COUNT");
-                cmd.emplace_back(count_str);
+                args << "COUNT" << count;
             }
             if (block)
             {
-                block_str = std::to_string(block->count());
-                cmd.emplace_back("BLOCK");
-                cmd.emplace_back(block_str);
+                args << "BLOCK" << block->count();
             }
             if (noack)
             {
-                cmd.emplace_back("NOACK");
+                args << "NOACK";
             }
-            cmd.emplace_back("STREAMS");
-            cmd.emplace_back(key);
-            cmd.emplace_back(id);
+            args << "STREAMS" << key << id;
             using RET = std::unordered_map<std::string, ItemStream>;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, group, consumer, std::move(block), key, id, count, noack);
 }
@@ -993,10 +982,10 @@ inline auto Redis<REDIS>::async_xack(std::string_view key, std::string_view grou
     return asio::async_initiate<CompletionToken, void(Expected<long long>)>(
         [this]<typename Handler>(Handler&& handler, auto key, auto group, auto&& input) mutable
         {
-            std::vector<std::string_view> cmd{"XACK", key, group};
-            cmd.insert(cmd.end(), input.begin(), input.end());
+            CmdArgs args;
+            args << "XACK" << key << group << input;
             using RET = long long;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, group, std::forward<Input>(input));
 }
@@ -1008,10 +997,10 @@ inline auto Redis<REDIS>::async_sadd(std::string_view key, Input&& input, Comple
     return asio::async_initiate<CompletionToken, void(Expected<long long>)>(
         [this]<typename Handler>(Handler&& handler, auto key, auto&& input) mutable
         {
-            std::vector<std::string_view> cmd{"SADD", key};
-            cmd.insert(cmd.end(), input.begin(), input.end());
+            CmdArgs args;
+            args << "SADD" << key << input;
             using RET = long long;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, std::forward<Input>(input));
 }
@@ -1023,9 +1012,10 @@ inline auto Redis<REDIS>::async_smembers(std::string_view key, CompletionToken&&
     return asio::async_initiate<CompletionToken, void(Expected<std::vector<std::string>>)>(
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
-            std::initializer_list<std::string_view> cmd{"SMEMBERS", key};
+            CmdArgs args;
+            args << "SMEMBERS" << key;
             using RET = std::vector<std::string>;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key);
 }
@@ -1037,9 +1027,10 @@ inline auto Redis<REDIS>::async_sismember(std::string_view key, std::string_view
     return asio::async_initiate<CompletionToken, void(Expected<long long>)>(
         [this]<typename Handler>(Handler&& handler, auto key, auto member) mutable
         {
-            std::initializer_list<std::string_view> cmd{"SISMEMBER", key, member};
+            CmdArgs args;
+            args << "SISMEMBER" << key << member;
             using RET = long long;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, member);
 }
@@ -1051,9 +1042,10 @@ inline auto Redis<REDIS>::async_scard(std::string_view key, CompletionToken&& to
     return asio::async_initiate<CompletionToken, void(Expected<long long>)>(
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
-            std::initializer_list<std::string_view> cmd{"SCARD", key};
+            CmdArgs args;
+            args << "SCARD" << key;
             using RET = long long;
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key);
 }
@@ -1066,19 +1058,17 @@ inline auto Redis<REDIS>::async_spop(std::string_view key, const std::optional<l
     return asio::async_initiate<CompletionToken, void(Expected<Result>)>(
         [this]<typename Handler>(Handler&& handler, auto key, auto count) mutable
         {
-            std::vector<std::string_view> cmd{"SPOP", key};
-            std::string count_str{"1"};
+            CmdArgs args;
+            args << "SPOP" << key;
             if (count.has_value())
             {
-                count_str = std::to_string(count.value());
-                cmd.emplace_back("COUNT");
-                cmd.emplace_back(count_str);
+                args << count.value();
             }
             else
             {
-                cmd.emplace_back(count_str);
+                args << "1";
             }
-            this->call_command<Result>(cmd, std::forward<Handler>(handler));
+            this->call_command<Result>(args(), std::forward<Handler>(handler));
         },
         token, key, count);
 }
@@ -1134,24 +1124,17 @@ inline auto Redis<REDIS>::async_zrangebyscore(std::string_view key, double min, 
                                  auto offset, auto count) mutable
         {
             using RET = Result;
-            auto mix_str = std::to_string(min);
-            auto max_str = std::to_string(max);
-            std::vector<std::string_view> cmd{"ZRANGEBYSCORE", key, mix_str, max_str};
+            CmdArgs args;
+            args << "ZRANGEBYSCORE" << key << min << max;
             if (withscores)
             {
-                cmd.emplace_back("WITHSCORES");
+                args << "WITHSCORES";
             }
-            std::string offset_str;
-            std::string count_str;
             if (offset >= 0 && count >= 0)
             {
-                offset_str = std::to_string(offset);
-                count_str = std::to_string(count);
-                cmd.emplace_back("LIMIT");
-                cmd.emplace_back(offset_str);
-                cmd.emplace_back(count_str);
+                args << "LIMIT" << offset << count;
             }
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key, min, max, withscores, offset, count);
 }
@@ -1163,14 +1146,15 @@ inline auto Redis<REDIS>::async_function_load(std::string_view code, bool replac
     return asio::async_initiate<CompletionToken, void(Expected<std::string>)>(
         [this]<typename Handler>(Handler&& handler, std::string_view code, bool replace) mutable
         {
-            using RET = std::string;
-            std::vector<std::string_view> cmd{"FUNCTION", "LOAD"};
+            CmdArgs args;
+            args << "FUNCTION" << "LOAD";
             if (replace)
             {
-                cmd.emplace_back("REPLACE");
+                args << "REPLACE";
             }
-            cmd.emplace_back(code);
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            args << code;
+            using RET = std::string;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, code, replace);
 }
@@ -1182,9 +1166,10 @@ inline auto Redis<REDIS>::async_function_delete(std::string_view lib_name, Compl
     return asio::async_initiate<CompletionToken, void(Expected<std::string>)>(
         [this]<typename Handler>(Handler&& handler, std::string_view lib_name) mutable
         {
+            CmdArgs args;
+            args << "FUNCTION" << "DELETE" << lib_name;
             using RET = std::string;
-            std::initializer_list<std::string_view> cmd{"FUNCTION", "DELETE", lib_name};
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, lib_name);
 }
@@ -1198,11 +1183,9 @@ inline auto Redis<REDIS>::async_fcall(std::string_view func, Keys&& keys, Args&&
         [this]<typename Handler>(Handler&& handler, std::string_view func, auto&& keys, auto&& args) mutable
         {
             using RET = Result;
-            auto num_keys = std::to_string(keys.size());
-            std::vector<std::string_view> cmd{"FCALL", func, num_keys};
-            cmd.insert(cmd.end(), keys.begin(), keys.end());
-            cmd.insert(cmd.end(), args.begin(), args.end());
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs cargs;
+            cargs << "FCALL" << func << keys.size() << keys << args;
+            this->call_command<RET>(cargs(), std::forward<Handler>(handler));
         },
         token, func, std::forward<Keys>(keys), std::forward<Args>(args));
 }
@@ -1215,12 +1198,10 @@ inline auto Redis<REDIS>::async_eval(std::string_view script, Keys&& keys, Args&
     return asio::async_initiate<CompletionToken, void(Expected<Result>)>(
         [this]<typename Handler>(Handler&& handler, std::string_view script, auto&& keys, auto&& args) mutable
         {
+            CmdArgs cargs;
+            cargs << "EVAL" << script << keys.size() << keys << args;
             using RET = Result;
-            auto num_keys = std::to_string(keys.size());
-            std::vector<std::string_view> cmd{"EVAL", script, num_keys};
-            cmd.insert(cmd.end(), keys.begin(), keys.end());
-            cmd.insert(cmd.end(), args.begin(), args.end());
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            this->call_command<RET>(cargs(), std::forward<Handler>(handler));
         },
         token, script, std::forward<Keys>(keys), std::forward<Args>(args));
 }
@@ -1233,8 +1214,9 @@ inline auto Redis<REDIS>::async_script_load(std::string_view script, CompletionT
         [this]<typename Handler>(Handler&& handler, std::string_view script) mutable
         {
             using RET = std::string;
-            std::initializer_list<std::string_view> cmd{"SCRIPT", "LOAD", script};
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "SCRIPT" << "LOAD" << script;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, script);
 }
@@ -1248,11 +1230,9 @@ inline auto Redis<REDIS>::async_evalsha(std::string_view sha1, Keys&& keys, Args
         [this]<typename Handler>(Handler&& handler, std::string_view sha1, auto&& keys, auto&& args) mutable
         {
             using RET = Result;
-            auto num_keys = std::to_string(keys.size());
-            std::vector<std::string_view> cmd{"EVALSHA", sha1, num_keys};
-            cmd.insert(cmd.end(), keys.begin(), keys.end());
-            cmd.insert(cmd.end(), args.begin(), args.end());
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs cargs;
+            cargs << "EVALSHA" << sha1 << keys.size() << keys << args;
+            this->call_command<RET>(cargs(), std::forward<Handler>(handler));
         },
         token, sha1, std::forward<Keys>(keys), std::forward<Args>(args));
 }
@@ -1279,8 +1259,9 @@ inline auto Redis<REDIS>::async_publish(std::string_view channel, std::string_vi
         [this]<typename Handler>(Handler&& handler, auto channel, auto message) mutable
         {
             using RET = long long;
-            std::initializer_list<std::string_view> cmd{"PUBLISH", channel, message};
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "PUBLISH" << channel << message;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, channel, message);
 }
@@ -1293,8 +1274,9 @@ inline auto Redis<REDIS>::async_spublish(std::string_view channel, std::string_v
         [this]<typename Handler>(Handler&& handler, auto channel, auto message) mutable
         {
             using RET = long long;
-            std::initializer_list<std::string_view> cmd{"SPUBLISH", channel, message};
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "SPUBLISH" << channel << message;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, channel, message);
 }
@@ -1306,8 +1288,9 @@ inline auto Redis<REDIS>::async_echo(std::string_view key, CompletionToken&& tok
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
             using RET = std::string;
-            std::initializer_list<std::string_view> cmd{"ECHO", key};
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "ECHO" << key;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key);
 }
@@ -1320,8 +1303,9 @@ inline auto Redis<REDIS>::async_ping(std::string_view key, CompletionToken&& tok
         [this]<typename Handler>(Handler&& handler, auto key) mutable
         {
             using RET = std::string;
-            std::initializer_list<std::string_view> cmd{"PING", key};
-            this->call_command<RET>(cmd, std::forward<Handler>(handler));
+            CmdArgs args;
+            args << "PING" << key;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
         },
         token, key);
 }
