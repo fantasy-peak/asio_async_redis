@@ -28,10 +28,8 @@ TEST_CASE("Test redis Functions")
                 REQUIRE(ret.value() == lib_name);
             }
             {
-                std::vector<std::string> keys = {"k1", "k2"};
-                std::vector<std::string> empty_list = {};
-                auto ret =
-                    co_await async_redis->async_fcall<long long>("my_func", keys, empty_list);
+                auto ret = co_await async_redis->async_fcall<long long>("my_func", std::vector<std::string>{"k1", "k2"},
+                                                                        std::vector<std::string>{});
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == 3);
             }
@@ -75,8 +73,7 @@ TEST_CASE("Test redis EVAL")
                 auto ret = co_await async_redis->async_script_load(script);
                 REQUIRE(ret.has_value());
                 spdlog::info("sha1: {}", ret.value());
-                auto eret =
-                    co_await async_redis->async_evalsha<long long>(ret.value(), keys, empty_list);
+                auto eret = co_await async_redis->async_evalsha<long long>(ret.value(), keys, empty_list);
                 REQUIRE(eret.has_value());
                 REQUIRE(eret.value() == 3);
             }

@@ -22,12 +22,12 @@ int main(int argc, char* argv[])
     int return_code = session.applyCommandLine(argc, argv);
     if (return_code != 0) return return_code;
 
-    BOOST_SCOPE_EXIT(&async_redis, &pool)
-    {
-        async_redis->stop();
-        pool->stop();
-    }
-    BOOST_SCOPE_EXIT_END
+    return_code = session.run();
 
-    return session.run();
+    spdlog::info("start stop...");
+    async_redis->stop();
+    pool->stop();
+    spdlog::info("end test");
+
+    return return_code;
 }

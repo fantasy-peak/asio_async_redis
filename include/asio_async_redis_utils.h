@@ -230,9 +230,10 @@ class CmdArgs
     }
 
     template <StringSequence Input>
-    CmdArgs& operator<<(const Input& input)
+    CmdArgs& operator<<(const std::reference_wrapper<Input>& input)
     {
-        m_cmds.insert(m_cmds.end(), input.begin(), input.end());
+        auto& input_ref = input.get();
+        m_cmds.insert(m_cmds.end(), input_ref.begin(), input_ref.end());
         return *this;
     }
 
