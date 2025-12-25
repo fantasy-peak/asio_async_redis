@@ -13,8 +13,15 @@
 #include <sw/redis++/async_redis.h>
 #include <sw/redis++/async_redis_cluster.h>
 
+#include "boost/asio/dispatch.hpp"
+#include "boost/asio/post.hpp"
+
 #include <atomic>
 #include <chrono>
+#include <functional>
+#include <future>
+#include <optional>
+#include <queue>
 #include <string>
 #include <string_view>
 
@@ -242,6 +249,125 @@ class CmdArgs
   private:
     std::vector<std::string_view> m_cmds;
     std::list<std::string> m_args;
+};
+
+template <typename T>
+class RedisClientPool final : public std::enable_shared_from_this<RedisClientPool<T>>
+{
+  public:
+    RedisClientPool(const std::string& uri, size_t max_size = 30, size_t pool_size = 1)
+        : m_redis_uri(uri), m_max_size(max_size)
+    {
+        m_loop_ptr = std::make_shared<sw::redis::EventLoop>();
+        m_pool_ptr = std::make_shared<asio_async_redis::ContextPool>(pool_size);
+        m_pool_ptr->start();
+        m_ctx_ptr = m_pool_ptr->getIoContextPtr();
+        for (size_t i = 0; i < max_size; i++)
+        {
+            auto ptr = std::make_shared<T>(m_redis_uri, m_pool_ptr, m_loop_ptr);
+            ptr->start();
+            m_pool.push(ptr);
+        }
+    }
+
+    RedisClientPool(const RedisClientPool&) = delete;
+    RedisClientPool& operator=(const RedisClientPool&) = delete;
+    RedisClientPool(RedisClientPool&&) = delete;
+    RedisClientPool& operator=(RedisClientPool&&) = delete;
+
+    ~RedisClientPool()
+    {
+        std::promise<void> done;
+        asio::dispatch(*m_ctx_ptr,
+                       [&]
+                       {
+                           std::queue<std::shared_ptr<T>> empty;
+                           m_pool.swap(empty);
+                           done.set_value();
+                       });
+        done.get_future().wait();
+        m_ctx_ptr.reset();
+        if (m_loop_ptr)
+        {
+            m_loop_ptr.reset();
+        }
+        m_pool_ptr->stop();
+    }
+
+    class Handle
+    {
+      public:
+        Handle(std::weak_ptr<RedisClientPool> pool, std::shared_ptr<T> conn) : m_pool(pool), m_conn(std::move(conn)) {}
+
+        ~Handle()
+        {
+            if (auto sp = m_pool.lock())
+            {
+                sp->release(m_conn);
+            }
+        }
+
+        [[nodiscard]] auto& get() const { return m_conn; }
+
+        Handle(const Handle&) = delete;
+        Handle& operator=(const Handle&) = delete;
+        Handle(Handle&&) = delete;
+        Handle& operator=(Handle&&) = delete;
+
+      private:
+        std::weak_ptr<RedisClientPool> m_pool;
+        std::shared_ptr<T> m_conn;
+    };
+
+    template <typename CompletionToken = asio::use_awaitable_t<>>
+    auto acquire(CompletionToken&& token = CompletionToken{})
+    {
+        return asio::async_initiate<CompletionToken, void(std::optional<std::unique_ptr<Handle>>)>(
+            [this]<typename Handler>(Handler&& handler) mutable
+            {
+                asio::post(*m_ctx_ptr,
+                           [this, handler = std::forward<Handler>(handler)] mutable
+                           {
+                               std::optional<std::unique_ptr<Handle>> result;
+                               if (!m_pool.empty())
+                               {
+                                   auto conn = std::move(m_pool.front());
+                                   m_pool.pop();
+                                   result = std::make_unique<Handle>(this->shared_from_this(), std::move(conn));
+                               }
+                               auto ex = asio::get_associated_executor(handler);
+                               asio::post(ex,
+                                          [h = std::move(handler), ret = std::move(result)] mutable
+                                          {
+                                              std::move(h)(std::move(ret));
+                                          });
+                           });
+            },
+            token);
+    }
+
+  private:
+    void release(std::shared_ptr<T> conn)
+    {
+        if (conn)
+        {
+            asio::post(*m_ctx_ptr,
+                       [this, conn = std::move(conn)] mutable
+                       {
+                           m_pool.push(std::move(conn));
+                       });
+        }
+    }
+
+  private:
+    std::string m_redis_uri;
+    size_t m_max_size;
+
+    std::shared_ptr<sw::redis::EventLoop> m_loop_ptr;
+    std::shared_ptr<asio_async_redis::ContextPool> m_pool_ptr;
+    std::shared_ptr<asio::io_context> m_ctx_ptr;
+
+    std::queue<std::shared_ptr<T>> m_pool;
 };
 
 }  // namespace asio_async_redis

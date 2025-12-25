@@ -16,7 +16,7 @@ TEST_CASE("Test redis cancel")
                 asio::steady_timer timer{ex};
                 timer.expires_after(std::chrono::seconds(1));
                 auto [ec] = co_await timer.async_wait(asio::as_tuple(asio::use_awaitable));
-                spdlog::info("sleep done");
+                spdlog::info("sleep done: {}", ec.message());
                 co_return true;
             };
             spdlog::info("start test cancel");

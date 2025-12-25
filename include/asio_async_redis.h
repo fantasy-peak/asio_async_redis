@@ -103,7 +103,8 @@ class Redis final
         {
             m_pool->stop();
         }
-        if (m_redis) {
+        if (m_redis)
+        {
             m_redis.reset();
         }
     }
@@ -296,6 +297,13 @@ class Redis final
     bool m_stop_pool;
     bool m_stop{false};
 };
+
+template <typename REDIS>
+inline std::shared_ptr<RedisClientPool<REDIS>> createRedisClientPool(const std::string& uri, size_t max_size = 30,
+                                                                     size_t pool_size = 1)
+{
+    return std::make_shared<RedisClientPool<REDIS>>(uri, max_size, pool_size);
+}
 
 template <typename REDIS>
 template <typename RET, typename Input, typename Handler>
