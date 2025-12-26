@@ -13,9 +13,6 @@
 #include <sw/redis++/async_redis.h>
 #include <sw/redis++/async_redis_cluster.h>
 
-#include "boost/asio/dispatch.hpp"
-#include "boost/asio/post.hpp"
-
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -69,20 +66,20 @@ class ContextPool final
             m_io_contexts.emplace_back(io_context_ptr);
             m_work.emplace_back(
                 asio::require(io_context_ptr->get_executor(), asio::execution::outstanding_work.tracked));
+            m_threads.emplace_back(
+                [io_context_ptr]
+                {
+                    io_context_ptr->run();
+                });
         }
     }
 
-    void start()
-    {
-        for (auto& context : m_io_contexts)
-            m_threads.emplace_back(
-                [&]
-                {
-                    context->run();
-                });
-    }
+    ContextPool(const ContextPool&) = delete;
+    ContextPool& operator=(const ContextPool&) = delete;
+    ContextPool(ContextPool&&) = delete;
+    ContextPool& operator=(ContextPool&&) = delete;
 
-    void stop()
+    ~ContextPool()
     {
         for (auto& context_ptr : m_io_contexts) context_ptr->stop();
         for (auto& thread : m_threads)
@@ -260,13 +257,10 @@ class RedisClientPool final : public std::enable_shared_from_this<RedisClientPoo
     {
         m_loop_ptr = std::make_shared<sw::redis::EventLoop>();
         m_pool_ptr = std::make_shared<asio_async_redis::ContextPool>(pool_size);
-        m_pool_ptr->start();
         m_ctx_ptr = m_pool_ptr->getIoContextPtr();
         for (size_t i = 0; i < max_size; i++)
         {
-            auto ptr = std::make_shared<T>(m_redis_uri, m_pool_ptr, m_loop_ptr);
-            ptr->start();
-            m_pool.push(ptr);
+            m_pool.push(std::make_shared<T>(m_redis_uri, m_pool_ptr, m_loop_ptr));
         }
     }
 
@@ -286,18 +280,15 @@ class RedisClientPool final : public std::enable_shared_from_this<RedisClientPoo
                            done.set_value();
                        });
         done.get_future().wait();
-        m_ctx_ptr.reset();
-        if (m_loop_ptr)
-        {
-            m_loop_ptr.reset();
-        }
-        m_pool_ptr->stop();
     }
 
     class Handle
     {
       public:
-        Handle(std::weak_ptr<RedisClientPool> pool, std::shared_ptr<T> conn) : m_pool(pool), m_conn(std::move(conn)) {}
+        Handle(std::weak_ptr<RedisClientPool> pool, std::shared_ptr<T> conn)
+            : m_pool(std::move(pool)), m_conn(std::move(conn))
+        {
+        }
 
         ~Handle()
         {
@@ -320,7 +311,7 @@ class RedisClientPool final : public std::enable_shared_from_this<RedisClientPoo
     };
 
     template <typename CompletionToken = asio::use_awaitable_t<>>
-    auto acquire(CompletionToken&& token = CompletionToken{})
+    [[nodiscard]] auto acquire(CompletionToken&& token = CompletionToken{})
     {
         return asio::async_initiate<CompletionToken, void(std::optional<std::unique_ptr<Handle>>)>(
             [this]<typename Handler>(Handler&& handler) mutable

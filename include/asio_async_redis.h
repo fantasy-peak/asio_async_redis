@@ -40,23 +40,21 @@ class Redis final
 {
   public:
     Redis(const std::string& uri, int32_t size = 1)
-        : m_redis(std::make_unique<REDIS>(uri)), m_pool(std::make_shared<ContextPool>(size)), m_stop_pool(true)
+        : m_redis(std::make_unique<REDIS>(uri)), m_pool(std::make_shared<ContextPool>(size))
     {
     }
     Redis(const std::string& uri, std::shared_ptr<ContextPool> ptr)
-        : m_redis(std::make_unique<REDIS>(uri)), m_pool(std::move(ptr)), m_stop_pool(false)
+        : m_redis(std::make_unique<REDIS>(uri)), m_pool(std::move(ptr))
     {
     }
     Redis(const sw::redis::ConnectionOptions& opts, const sw::redis::ConnectionPoolOptions& pool_opts = {},
           const sw::redis::EventLoopSPtr& loop = nullptr, int32_t size = 1)
-        : m_redis(std::make_unique<REDIS>(opts, pool_opts, loop)),
-          m_pool(std::make_shared<ContextPool>(size)),
-          m_stop_pool(true)
+        : m_redis(std::make_unique<REDIS>(opts, pool_opts, loop)), m_pool(std::make_shared<ContextPool>(size))
     {
     }
     Redis(std::shared_ptr<ContextPool> ptr, const sw::redis::ConnectionOptions& opts,
           const sw::redis::ConnectionPoolOptions& pool_opts = {}, const sw::redis::EventLoopSPtr& loop = nullptr)
-        : m_redis(std::make_unique<REDIS>(opts, pool_opts, loop)), m_pool(std::move(ptr)), m_stop_pool(false)
+        : m_redis(std::make_unique<REDIS>(opts, pool_opts, loop)), m_pool(std::move(ptr))
     {
     }
     Redis(const std::string& uri, std::shared_ptr<ContextPool> ptr, sw::redis::EventLoopSPtr loop)
@@ -66,8 +64,7 @@ class Redis final
                   sw::redis::Uri uri_obj(uri);
                   return std::make_unique<REDIS>(uri_obj.connection_options(), uri_obj.connection_pool_options(), loop);
               }()),
-          m_pool(std::move(ptr)),
-          m_stop_pool(false)
+          m_pool(std::move(ptr))
     {
     }
     Redis(const std::shared_ptr<sw::redis::AsyncSentinel>& sentinel, const std::string& master_name,
@@ -75,39 +72,16 @@ class Redis final
           const sw::redis::ConnectionPoolOptions& pool_opts = {}, const sw::redis::EventLoopSPtr& loop = nullptr,
           int32_t size = 1)
         : m_redis(std::make_unique<REDIS>(sentinel, master_name, role, connection_opts, pool_opts, loop)),
-          m_pool(std::make_shared<ContextPool>(size)),
-          m_stop_pool(true)
+          m_pool(std::make_shared<ContextPool>(size))
     {
     }
 
-    ~Redis() { stop(); }
+    ~Redis() = default;
 
     Redis(const Redis&) = delete;
     Redis& operator=(const Redis&) = delete;
     Redis(Redis&&) = delete;
     Redis& operator=(Redis&&) = delete;
-
-    void start()
-    {
-        if (m_stop_pool)
-        {
-            m_pool->start();
-        }
-    }
-
-    void stop()
-    {
-        if (m_stop) return;
-        m_stop = true;
-        if (m_stop_pool)
-        {
-            m_pool->stop();
-        }
-        if (m_redis)
-        {
-            m_redis.reset();
-        }
-    }
 
     // connection
     template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken = asio::use_awaitable_t<>>
@@ -294,8 +268,6 @@ class Redis final
 
     std::unique_ptr<REDIS> m_redis;
     std::shared_ptr<ContextPool> m_pool;
-    bool m_stop_pool;
-    bool m_stop{false};
 };
 
 template <typename REDIS>
