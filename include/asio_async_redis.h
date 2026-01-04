@@ -449,18 +449,31 @@ inline auto Redis<REDIS>::async_xread(std::string_view key, std::string_view id,
                                       const std::optional<std::chrono::milliseconds>& timeout, long long count,
                                       CompletionToken&& token)
 {
+    using RET = std::unordered_map<std::string, ItemStream>;
     return asio::async_initiate<CompletionToken, void(Expected<std::unordered_map<std::string, ItemStream>>)>(
         [this]<typename Handler>(Handler&& handler, auto key, auto id, auto timeout, auto count) mutable
         {
-            CmdArgs args;
-            args << "XREAD" << "COUNT" << count;
+            auto [h, io_context, cancelled] = register_slot(std::forward<Handler>(handler));
             if (timeout.has_value())
             {
-                args << "BLOCK" << timeout.value();
+                m_redis->template xread<RET>(key, id, count, timeout.value(),
+                                             [io_context, h = std::move(h), cancelled = std::move(cancelled),
+                                              this](std::future<RET>&& fut) mutable
+                                             {
+                                                 process<RET>(io_context, std::move(cancelled), std::move(h),
+                                                              std::move(fut));
+                                             });
             }
-            args << "STREAMS" << key << id;
-            using RET = std::unordered_map<std::string, ItemStream>;
-            this->call_command<RET>(args(), std::forward<Handler>(handler));
+            else
+            {
+                m_redis->template xread<RET>(key, id, count,
+                                             [io_context, h = std::move(h), cancelled = std::move(cancelled),
+                                              this](std::future<RET>&& fut) mutable
+                                             {
+                                                 process<RET>(io_context, std::move(cancelled), std::move(h),
+                                                              std::move(fut));
+                                             });
+            }
         },
         token, key, id, timeout, count);
 }

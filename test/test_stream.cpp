@@ -46,6 +46,7 @@ TEST_CASE("Test redis stream")
                                   asio_async_redis::to_string(xret.error().error_code()));
                 }
             }
+#ifndef TEST_REDIS_CLUSTER
             {
                 co_await async_redis->async_del(stream_name);
                 co_await async_redis->async_xadd(stream_name, "*", value);
@@ -68,6 +69,7 @@ TEST_CASE("Test redis stream")
                     }
                 }
             }
+#endif
             co_return;
         },
         asio::use_future);

@@ -3,7 +3,7 @@ add_rules("mode.debug", "mode.release")
 add_repositories("my_private_repo https://github.com/fantasy-peak/xmake-repo.git")
 
 add_requires("boost", {system = false, configs={cmake=false, url=true}})
-add_requires("spdlog", "redis-plus-plus 180d978b21d80e5da28ec96759fa8298c65dd760", "catch2")
+add_requires("spdlog", "redis-plus-plus 90b8331530685026f608fafbab2e5855bfc07770", "catch2")
 add_requires("tl_expected")
 
 add_defines("ASIO_ASYNC_REDIS_USE_BOOST_ASIO")
@@ -40,7 +40,7 @@ target("test_redis_cluster")
         -- "test/test_cancel.cpp",
         "test/test_hash.cpp",
         "test/test_list.cpp",
-        -- "test/test_stream.cpp",
+        "test/test_stream.cpp",
         "test/test_string.cpp",
         "test/test_set.cpp",
         -- "test/test_lua.cpp",
