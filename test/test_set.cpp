@@ -66,8 +66,8 @@ TEST_CASE("Test redis sort set")
             std::string sorted_set_key = "sorted_set_1";
             {
                 co_await async_redis->async_del(sorted_set_key);
-                auto ret = co_await async_redis->async_zadd(sorted_set_key, "a", 99, sw::redis::UpdateType::ALWAYS,
-                                                            true);
+                auto ret =
+                    co_await async_redis->async_zadd(sorted_set_key, "a", 99, sw::redis::UpdateType::ALWAYS, true);
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == 1);
             }
@@ -90,10 +90,18 @@ TEST_CASE("Test redis sort set")
             {
                 int offset = -1;
                 int count = -1;
-                auto ret = co_await async_redis->async_zrangebyscore<std::vector<std::string>>(
-                    sorted_set_key, 0, 5, false, offset, count);
+                auto ret = co_await async_redis->async_zrangebyscore<std::vector<std::string>>(sorted_set_key, 0, 5,
+                                                                                               false, offset, count);
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value().size() == 2);
+            }
+            {
+                std::string geo_key = "city";
+                co_await async_redis->async_del(geo_key);
+                std::vector<std::tuple<double, double, std::string>> input{{116.40, 39.90, "shanghai"}};
+                auto ret = co_await async_redis->async_geoadd(geo_key, sw::redis::UpdateType::ALWAYS, false, input);
+                REQUIRE(ret.has_value());
+                REQUIRE(ret.value() == 1);
             }
             co_return;
         },

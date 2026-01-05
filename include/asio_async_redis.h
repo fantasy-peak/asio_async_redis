@@ -222,6 +222,11 @@ class Redis final
     auto async_zrangebyscore(std::string_view key, double min, double max, bool withscores, long long offset,
                              long long count, CompletionToken&& token = CompletionToken{});
 
+    template <typename Input,
+              asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_geoadd(std::string_view key, sw::redis::UpdateType type, bool ch, const Input& input,
+                      CompletionToken&& token = CompletionToken{});
+
     // lua
     template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken = asio::use_awaitable_t<>>
     auto async_function_load(std::string_view code, bool replace, CompletionToken&& token = CompletionToken{});
@@ -303,11 +308,11 @@ inline void Redis<REDIS>::call_command(const Input& cmd, Handler&& handler)
                        }
                        *cancelled = true;
                        auto ex = asio::get_associated_executor(*h);
-                       asio::post(ex,
-                                  [h = std::move(h), ret = std::move(result)] mutable
-                                  {
-                                      std::move (*h)(std::move(ret));
-                                  });
+                       asio::dispatch(ex,
+                                      [h = std::move(h), ret = std::move(result)] mutable
+                                      {
+                                          std::move (*h)(std::move(ret));
+                                      });
                    });
     }
     return;
@@ -385,11 +390,11 @@ inline void Redis<REDIS>::process(asio::io_context* io_context, std::shared_ptr<
                        result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::UnknownError});
                    }
                    auto ex = asio::get_associated_executor(*h);
-                   asio::post(ex,
-                              [h = std::move(h), ret = std::move(result)] mutable
-                              {
-                                  std::move (*h)(std::move(ret));
-                              });
+                   asio::dispatch(ex,
+                                  [h = std::move(h), ret = std::move(result)] mutable
+                                  {
+                                      std::move (*h)(std::move(ret));
+                                  });
                });
 }
 
@@ -415,7 +420,7 @@ inline auto Redis<REDIS>::register_slot(H&& handler)
                                }
                                *cancelled = true;
                                auto ex = asio::get_associated_executor(*h);
-                               asio::post(
+                               asio::dispatch(
                                    ex,
                                    [h = std::move(h)]
                                    {
@@ -1094,6 +1099,42 @@ inline auto Redis<REDIS>::async_zadd(std::string_view key, std::string_view memb
                 });
         },
         token, key, member, score, type, changed);
+}
+
+template <typename REDIS>
+template <typename Input, asio::completion_token_for<void(Expected<long long>)> CompletionToken>
+inline auto Redis<REDIS>::async_geoadd(std::string_view key, sw::redis::UpdateType type, bool ch, const Input& input,
+                                       CompletionToken&& token)
+{
+    return asio::async_initiate<CompletionToken, void(Expected<long long>)>(
+        [this]<typename Handler>(Handler&& handler, std::string_view key, auto type, auto ch, auto&& input) mutable
+        {
+            using RET = long long;
+            CmdArgs args;
+            args << "GEOADD" << key;
+            switch (type)
+            {
+                case sw::redis::UpdateType::EXIST:
+                    args << "XX";
+                    break;
+                case sw::redis::UpdateType::NOT_EXIST:
+                    args << "NX";
+                    break;
+                default:
+                    break;
+            }
+            if (ch)
+            {
+                args << "CH";
+            }
+            auto& input_ref = input.get();
+            for (const auto& [longitude, latitude, member] : input_ref)
+            {
+                args << longitude << latitude << member;
+            }
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
+        },
+        token, key, type, ch, std::ref(input));
 }
 
 template <typename REDIS>
