@@ -390,6 +390,7 @@ inline void Redis<REDIS>::process(asio::io_context* io_context, std::shared_ptr<
                        result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::UnknownError});
                    }
                    auto ex = asio::get_associated_executor(*h);
+                   [[maybe_unused]] executor_warning<decltype(ex)> _w;
                    asio::dispatch(ex,
                                   [h = std::move(h), ret = std::move(result)] mutable
                                   {

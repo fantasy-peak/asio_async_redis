@@ -201,6 +201,45 @@ template <typename T>
 concept REDIS = std::is_same_v<std::decay_t<T>, sw::redis::AsyncRedis> ||
                 std::is_same_v<std::decay_t<T>, sw::redis::AsyncRedisCluster>;
 
+struct executor_alert_base
+{
+    [[deprecated("ASIO_REDIS: Specific executor detected (inline/system). Consider binding other executor.")]]
+    static void trigger_warning()
+    {
+    }
+};
+
+struct no_alert_base
+{
+    static void trigger_warning() {}
+};
+
+template <bool IsBad>
+struct alert_selector : no_alert_base
+{
+};
+
+template <>
+struct alert_selector<true> : executor_alert_base
+{
+};
+
+template <typename T>
+struct executor_warning
+{
+#if ASIO_ASYNC_REDIS_USE_BOOST_ASIO
+#if BOOST_VERSION >= 109000
+    static constexpr bool is_bad = std::is_same_v<T, asio::system_executor> || std::is_same_v<T, asio::inline_executor>;
+#else
+    static constexpr bool is_bad = std::is_same_v<T, asio::system_executor>;
+#endif
+#else
+    // todo asio standalone
+    static constexpr bool is_bad = std::is_same_v<T, asio::system_executor>;
+#endif
+    executor_warning() { alert_selector<is_bad>::trigger_warning(); }
+};
+
 class CmdArgs
 {
   public:
