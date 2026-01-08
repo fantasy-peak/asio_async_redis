@@ -308,11 +308,12 @@ inline void Redis<REDIS>::call_command(const Input& cmd, Handler&& handler)
                        }
                        *cancelled = true;
                        auto ex = asio::get_associated_executor(*h);
-                       asio::dispatch(ex,
-                                      [h = std::move(h), ret = std::move(result)] mutable
-                                      {
-                                          std::move (*h)(std::move(ret));
-                                      });
+                       auto alloc = asio::get_associated_allocator(*h);
+                       asio::dispatch(ex, asio::bind_allocator(alloc,
+                                                               [h = std::move(h), ret = std::move(result)] mutable
+                                                               {
+                                                                   std::move (*h)(std::move(ret));
+                                                               }));
                    });
     }
     return;
@@ -391,11 +392,12 @@ inline void Redis<REDIS>::process(asio::io_context* io_context, std::shared_ptr<
                    }
                    auto ex = asio::get_associated_executor(*h);
                    [[maybe_unused]] executor_warning<decltype(ex)> _w;
-                   asio::dispatch(ex,
-                                  [h = std::move(h), ret = std::move(result)] mutable
-                                  {
-                                      std::move (*h)(std::move(ret));
-                                  });
+                   auto alloc = asio::get_associated_allocator(*h);
+                   asio::dispatch(ex, asio::bind_allocator(alloc,
+                                                           [h = std::move(h), ret = std::move(result)] mutable
+                                                           {
+                                                               std::move (*h)(std::move(ret));
+                                                           }));
                });
 }
 
@@ -421,12 +423,14 @@ inline auto Redis<REDIS>::register_slot(H&& handler)
                                }
                                *cancelled = true;
                                auto ex = asio::get_associated_executor(*h);
-                               asio::dispatch(
-                                   ex,
-                                   [h = std::move(h)]
-                                   {
-                                       std::move (*h)(UnExpected(RedisError{"cancel", RedisError::ErrorCode::Cancel}));
-                                   });
+                               auto alloc = asio::get_associated_allocator(*h);
+                               asio::dispatch(ex,
+                                              asio::bind_allocator(alloc,
+                                                                   [h = std::move(h)]
+                                                                   {
+                                                                       std::move (*h)(UnExpected(RedisError{
+                                                                           "cancel", RedisError::ErrorCode::Cancel}));
+                                                                   }));
                            });
             });
     }
