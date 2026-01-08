@@ -5,13 +5,11 @@
 #include <memory>
 #include <vector>
 
-TEST_CASE("Test redis string")
-{
+TEST_CASE("Test redis string") {
     std::string key = "asio_redis";
     auto f = asio::co_spawn(
         pool->getIoContext(),
-        [&] -> asio::awaitable<void>
-        {
+        [&] -> asio::awaitable<void> {
             spdlog::info("start test redis string");
             std::string key = "asio_redis";
             co_await async_redis->async_del(key);

@@ -2,13 +2,11 @@
 
 #include <memory>
 
-TEST_CASE("Test Redis class construction")
-{
+TEST_CASE("Test Redis class construction") {
     auto client_pool = asio_async_redis::createRedisClientPool<asio_async_redis::Redis<>>(redis_uri, 1, 1);
     auto f = asio::co_spawn(
         pool->getIoContext(),
-        [&] -> asio::awaitable<void>
-        {
+        [&] -> asio::awaitable<void> {
 #if 0
             sw::redis::EventLoopSPtr loop = asio_async_redis::Redis<>::createEventLoop();
             asio_async_redis::Redis<> redis(redis_uri, pool, loop);

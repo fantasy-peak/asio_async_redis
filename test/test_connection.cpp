@@ -1,14 +1,11 @@
 #include "utils.h"
 
-#include <iostream>
 #include <memory>
 
-TEST_CASE("Test redis connection cmd")
-{
+TEST_CASE("Test redis connection cmd") {
     auto f = asio::co_spawn(
         pool->getIoContext(),
-        [&] -> asio::awaitable<void>
-        {
+        [&] -> asio::awaitable<void> {
             spdlog::info("start test redis connection cmd");
             std::string key = "connection_cmd";
             {

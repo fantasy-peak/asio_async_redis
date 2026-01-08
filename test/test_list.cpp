@@ -4,12 +4,10 @@
 #include <memory>
 #include <vector>
 
-TEST_CASE("Test redis list")
-{
+TEST_CASE("Test redis list") {
     auto f = asio::co_spawn(
         pool->getIoContext(),
-        [&] -> asio::awaitable<void>
-        {
+        [&] -> asio::awaitable<void> {
             spdlog::info("start test redis list");
             std::string key = "test_list";
             std::vector<std::string> data{"a", "b", "c"};

@@ -4,12 +4,10 @@
 #include <memory>
 #include <vector>
 
-TEST_CASE("Test redis hash")
-{
+TEST_CASE("Test redis hash") {
     auto f = asio::co_spawn(
         pool->getIoContext(),
-        [&] -> asio::awaitable<void>
-        {
+        [&] -> asio::awaitable<void> {
             spdlog::info("start test redis hash");
             std::string key = "test_hash";
             co_await async_redis->async_del(key);
@@ -17,8 +15,7 @@ TEST_CASE("Test redis hash")
                 auto ret = co_await async_redis->async_hset(key, "field1", "value1");
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == 1);
-                if (ret.has_value())
-                {
+                if (ret.has_value()) {
                     spdlog::info("hset: {}", ret.value());
                 }
             }
@@ -42,16 +39,13 @@ TEST_CASE("Test redis hash")
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == 1);
             }
-            try
-            {
+            try {
                 auto ret = async_redis->async_hdel(key, std::vector<std::string>{"field2"}, asio::use_future);
                 ret.wait();
                 auto data = ret.get();
                 REQUIRE(data.has_value());
                 REQUIRE(data.value() == 1);
-            }
-            catch (const std::exception& e)
-            {
+            } catch (const std::exception& e) {
                 spdlog::error("{}", e.what());
             }
             co_return;

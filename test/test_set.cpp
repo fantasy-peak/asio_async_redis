@@ -6,12 +6,10 @@
 #include <string_view>
 #include <vector>
 
-TEST_CASE("Test redis set")
-{
+TEST_CASE("Test redis set") {
     auto f = asio::co_spawn(
         pool->getIoContext(),
-        [&] -> asio::awaitable<void>
-        {
+        [&] -> asio::awaitable<void> {
             spdlog::info("start test redis set");
             std::string key = "test_set";
             co_await async_redis->async_del(key);
@@ -56,12 +54,10 @@ TEST_CASE("Test redis set")
     f.wait();
 }
 
-TEST_CASE("Test redis sort set")
-{
+TEST_CASE("Test redis sort set") {
     auto f = asio::co_spawn(
         pool->getIoContext(),
-        [&] -> asio::awaitable<void>
-        {
+        [&] -> asio::awaitable<void> {
             spdlog::info("start test redis sort set");
             std::string sorted_set_key = "sorted_set_1";
             {
@@ -74,24 +70,24 @@ TEST_CASE("Test redis sort set")
             {
                 co_await async_redis->async_del(sorted_set_key);
                 std::unordered_map<std::string, double> scores = {{"m2", 2.3}, {"m3", 4.5}};
-                auto ret = co_await async_redis->async_zadd(sorted_set_key, scores, sw::redis::UpdateType::ALWAYS, true,
-                                                            asio::use_awaitable);
+                auto ret = co_await async_redis->async_zadd(
+                    sorted_set_key, scores, sw::redis::UpdateType::ALWAYS, true, asio::use_awaitable);
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == 2);
             }
             {
                 int offset = 0;
                 int count = 100;
-                auto ret = co_await async_redis->async_zrangebyscore(sorted_set_key, 0, 5, true, offset, count,
-                                                                     asio::use_awaitable);
+                auto ret = co_await async_redis->async_zrangebyscore(
+                    sorted_set_key, 0, 5, true, offset, count, asio::use_awaitable);
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value().size() == 2);
             }
             {
                 int offset = -1;
                 int count = -1;
-                auto ret = co_await async_redis->async_zrangebyscore<std::vector<std::string>>(sorted_set_key, 0, 5,
-                                                                                               false, offset, count);
+                auto ret = co_await async_redis->async_zrangebyscore<std::vector<std::string>>(
+                    sorted_set_key, 0, 5, false, offset, count);
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value().size() == 2);
             }

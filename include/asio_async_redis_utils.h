@@ -43,8 +43,7 @@
 #include <asio.hpp>
 #endif
 
-namespace asio_async_redis
-{
+namespace asio_async_redis {
 
 #ifdef ASIO_ASYNC_REDIS_USE_BOOST_ASIO
 namespace asio = boost::asio;
@@ -54,23 +53,17 @@ using Attrs = std::vector<std::pair<std::string, std::string>>;
 using Item = std::pair<std::string, std::optional<Attrs>>;
 using ItemStream = std::vector<Item>;
 
-class ContextPool final
-{
+class ContextPool final {
   public:
-    ContextPool(std::size_t pool_size) : m_next_io_context(0)
-    {
-        if (pool_size == 0) throw std::runtime_error("ContextPool size is 0");
-        for (std::size_t i = 0; i < pool_size; ++i)
-        {
+    ContextPool(std::size_t pool_size) : m_next_io_context(0) {
+        if (pool_size == 0)
+            throw std::runtime_error("ContextPool size is 0");
+        for (std::size_t i = 0; i < pool_size; ++i) {
             auto io_context_ptr = std::make_shared<asio::io_context>();
             m_io_contexts.emplace_back(io_context_ptr);
             m_work.emplace_back(
                 asio::require(io_context_ptr->get_executor(), asio::execution::outstanding_work.tracked));
-            m_threads.emplace_back(
-                [io_context_ptr]
-                {
-                    io_context_ptr->run();
-                });
+            m_threads.emplace_back([io_context_ptr] { io_context_ptr->run(); });
         }
     }
 
@@ -79,29 +72,26 @@ class ContextPool final
     ContextPool(ContextPool&&) = delete;
     ContextPool& operator=(ContextPool&&) = delete;
 
-    ~ContextPool()
-    {
-        for (auto& context_ptr : m_io_contexts) context_ptr->stop();
-        for (auto& thread : m_threads)
-        {
-            if (thread.joinable()) thread.join();
+    ~ContextPool() {
+        for (auto& context_ptr : m_io_contexts)
+            context_ptr->stop();
+        for (auto& thread : m_threads) {
+            if (thread.joinable())
+                thread.join();
         }
     }
 
-    asio::io_context& getIoContext()
-    {
+    asio::io_context& getIoContext() {
         size_t index = m_next_io_context.fetch_add(1, std::memory_order_relaxed);
         return *m_io_contexts[index % m_io_contexts.size()];
     }
 
-    auto& getIoContextPtr()
-    {
+    auto& getIoContextPtr() {
         size_t index = m_next_io_context.fetch_add(1, std::memory_order_relaxed);
         return m_io_contexts[index % m_io_contexts.size()];
     }
 
-    auto getIoContextRawPtr()
-    {
+    auto getIoContextRawPtr() {
         size_t index = m_next_io_context.fetch_add(1, std::memory_order_relaxed);
         return m_io_contexts[index % m_io_contexts.size()].get();
     }
@@ -113,11 +103,9 @@ class ContextPool final
     std::vector<std::thread> m_threads;
 };
 
-class RedisError
-{
+class RedisError {
   public:
-    enum class ErrorCode : int8_t
-    {
+    enum class ErrorCode : int8_t {
         Cancel,
         Error,
         IoError,
@@ -132,20 +120,24 @@ class RedisError
         UnknownError,
     };
 
-    RedisError(std::string msg, ErrorCode code) : m_error_msg(std::move(msg)), m_error_code(code) {}
+    RedisError(std::string msg, ErrorCode code) : m_error_msg(std::move(msg)), m_error_code(code) {
+    }
 
-    [[nodiscard]] auto& message() const { return m_error_msg; }
-    [[nodiscard]] auto& error_code() const { return m_error_code; }
+    [[nodiscard]] auto& message() const {
+        return m_error_msg;
+    }
+
+    [[nodiscard]] auto& error_code() const {
+        return m_error_code;
+    }
 
   private:
     std::string m_error_msg;
     ErrorCode m_error_code{ErrorCode::UnknownError};
 };
 
-inline std::string_view to_string(RedisError::ErrorCode error_code)
-{
-    switch (error_code)
-    {
+inline std::string_view to_string(RedisError::ErrorCode error_code) {
+    switch (error_code) {
         case RedisError::ErrorCode::Cancel:
             return "Cancel";
         case RedisError::ErrorCode::Error:
@@ -201,32 +193,25 @@ template <typename T>
 concept REDIS = std::is_same_v<std::decay_t<T>, sw::redis::AsyncRedis> ||
                 std::is_same_v<std::decay_t<T>, sw::redis::AsyncRedisCluster>;
 
-struct executor_alert_base
-{
+struct executor_alert_base {
     [[deprecated("ASIO_REDIS: Specific executor detected (inline/system). Consider binding other executor.")]]
-    static void trigger_warning()
-    {
+    static void trigger_warning() {
     }
 };
 
-struct no_alert_base
-{
-    static void trigger_warning() {}
+struct no_alert_base {
+    static void trigger_warning() {
+    }
 };
 
 template <bool IsBad>
-struct alert_selector : no_alert_base
-{
-};
+struct alert_selector : no_alert_base {};
 
 template <>
-struct alert_selector<true> : executor_alert_base
-{
-};
+struct alert_selector<true> : executor_alert_base {};
 
 template <typename T>
-struct executor_warning
-{
+struct executor_warning {
 #if ASIO_ASYNC_REDIS_USE_BOOST_ASIO
 #if BOOST_VERSION >= 109000
     static constexpr bool is_bad = std::is_same_v<T, asio::system_executor> || std::is_same_v<T, asio::inline_executor>;
@@ -237,50 +222,48 @@ struct executor_warning
     // todo asio standalone
     static constexpr bool is_bad = std::is_same_v<T, asio::system_executor>;
 #endif
-    executor_warning() { alert_selector<is_bad>::trigger_warning(); }
+    executor_warning() {
+        alert_selector<is_bad>::trigger_warning();
+    }
 };
 
-class CmdArgs
-{
+class CmdArgs {
   public:
     CmdArgs() = default;
 
-    CmdArgs& operator<<(long long input)
-    {
+    CmdArgs& operator<<(long long input) {
         m_args.push_back(std::to_string(input));
         m_cmds.emplace_back(m_args.back());
         return *this;
     }
 
-    CmdArgs& operator<<(std::string_view input)
-    {
+    CmdArgs& operator<<(std::string_view input) {
         m_cmds.emplace_back(input);
         return *this;
     }
 
-    CmdArgs& operator<<(const std::chrono::seconds& input)
-    {
+    CmdArgs& operator<<(const std::chrono::seconds& input) {
         m_args.push_back(std::to_string(input.count()));
         m_cmds.emplace_back(m_args.back());
         return *this;
     }
 
-    CmdArgs& operator<<(const std::chrono::milliseconds& input)
-    {
+    CmdArgs& operator<<(const std::chrono::milliseconds& input) {
         m_args.push_back(std::to_string(input.count()));
         m_cmds.emplace_back(m_args.back());
         return *this;
     }
 
     template <StringSequence Input>
-    CmdArgs& operator<<(const std::reference_wrapper<Input>& input)
-    {
+    CmdArgs& operator<<(const std::reference_wrapper<Input>& input) {
         auto& input_ref = input.get();
         m_cmds.insert(m_cmds.end(), input_ref.begin(), input_ref.end());
         return *this;
     }
 
-    const auto& operator()() { return m_cmds; }
+    const auto& operator()() {
+        return m_cmds;
+    }
 
   private:
     std::vector<std::string_view> m_cmds;
@@ -288,17 +271,14 @@ class CmdArgs
 };
 
 template <typename T>
-class RedisClientPool final : public std::enable_shared_from_this<RedisClientPool<T>>
-{
+class RedisClientPool final : public std::enable_shared_from_this<RedisClientPool<T>> {
   public:
     RedisClientPool(const std::string& uri, size_t max_size = 30, size_t pool_size = 1)
-        : m_redis_uri(uri), m_max_size(max_size)
-    {
+        : m_redis_uri(uri), m_max_size(max_size) {
         m_loop_ptr = std::make_shared<sw::redis::EventLoop>();
         m_pool_ptr = std::make_shared<asio_async_redis::ContextPool>(pool_size);
         m_ctx_ptr = m_pool_ptr->getIoContextPtr();
-        for (size_t i = 0; i < max_size; i++)
-        {
+        for (size_t i = 0; i < max_size; i++) {
             m_pool.push(std::make_shared<T>(m_redis_uri, m_pool_ptr, m_loop_ptr));
         }
     }
@@ -308,36 +288,31 @@ class RedisClientPool final : public std::enable_shared_from_this<RedisClientPoo
     RedisClientPool(RedisClientPool&&) = delete;
     RedisClientPool& operator=(RedisClientPool&&) = delete;
 
-    ~RedisClientPool()
-    {
+    ~RedisClientPool() {
         std::promise<void> done;
-        asio::dispatch(*m_ctx_ptr,
-                       [&]
-                       {
-                           std::queue<std::shared_ptr<T>> empty;
-                           m_pool.swap(empty);
-                           done.set_value();
-                       });
+        asio::dispatch(*m_ctx_ptr, [&] {
+            std::queue<std::shared_ptr<T>> empty;
+            m_pool.swap(empty);
+            done.set_value();
+        });
         done.get_future().wait();
     }
 
-    class Handle
-    {
+    class Handle {
       public:
         Handle(std::weak_ptr<RedisClientPool> pool, std::shared_ptr<T> conn)
-            : m_pool(std::move(pool)), m_conn(std::move(conn))
-        {
+            : m_pool(std::move(pool)), m_conn(std::move(conn)) {
         }
 
-        ~Handle()
-        {
-            if (auto sp = m_pool.lock())
-            {
+        ~Handle() {
+            if (auto sp = m_pool.lock()) {
                 sp->release(m_conn);
             }
         }
 
-        [[nodiscard]] auto& get() const { return m_conn; }
+        [[nodiscard]] auto& get() const {
+            return m_conn;
+        }
 
         Handle(const Handle&) = delete;
         Handle& operator=(const Handle&) = delete;
@@ -350,42 +325,29 @@ class RedisClientPool final : public std::enable_shared_from_this<RedisClientPoo
     };
 
     template <typename CompletionToken = asio::use_awaitable_t<>>
-    [[nodiscard]] auto acquire(CompletionToken&& token = CompletionToken{})
-    {
+    [[nodiscard]] auto acquire(CompletionToken&& token = CompletionToken{}) {
         return asio::async_initiate<CompletionToken, void(std::optional<std::unique_ptr<Handle>>)>(
-            [this]<typename Handler>(Handler&& handler) mutable
-            {
-                asio::post(*m_ctx_ptr,
-                           [this, handler = std::forward<Handler>(handler)] mutable
-                           {
-                               std::optional<std::unique_ptr<Handle>> result;
-                               if (!m_pool.empty())
-                               {
-                                   auto conn = std::move(m_pool.front());
-                                   m_pool.pop();
-                                   result = std::make_unique<Handle>(this->shared_from_this(), std::move(conn));
-                               }
-                               auto ex = asio::get_associated_executor(handler);
-                               asio::post(ex,
-                                          [h = std::move(handler), ret = std::move(result)] mutable
-                                          {
-                                              std::move(h)(std::move(ret));
-                                          });
-                           });
+            [this]<typename Handler>(Handler&& handler) mutable {
+                asio::post(*m_ctx_ptr, [this, handler = std::forward<Handler>(handler)] mutable {
+                    std::optional<std::unique_ptr<Handle>> result;
+                    if (!m_pool.empty()) {
+                        auto conn = std::move(m_pool.front());
+                        m_pool.pop();
+                        result = std::make_unique<Handle>(this->shared_from_this(), std::move(conn));
+                    }
+                    auto ex = asio::get_associated_executor(handler);
+                    asio::post(ex, [h = std::move(handler), ret = std::move(result)] mutable {
+                        std::move(h)(std::move(ret));
+                    });
+                });
             },
             token);
     }
 
   private:
-    void release(std::shared_ptr<T> conn)
-    {
-        if (conn)
-        {
-            asio::post(*m_ctx_ptr,
-                       [this, conn = std::move(conn)] mutable
-                       {
-                           m_pool.push(std::move(conn));
-                       });
+    void release(std::shared_ptr<T> conn) {
+        if (conn) {
+            asio::post(*m_ctx_ptr, [this, conn = std::move(conn)] mutable { m_pool.push(std::move(conn)); });
         }
     }
 

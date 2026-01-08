@@ -6,12 +6,10 @@
 #include <string_view>
 #include <vector>
 
-TEST_CASE("Test redis Functions")
-{
+TEST_CASE("Test redis Functions") {
     auto f = asio::co_spawn(
         pool->getIoContext(),
-        [&] -> asio::awaitable<void>
-        {
+        [&] -> asio::awaitable<void> {
             std::string lib_name{"testlib"};
             spdlog::info("start test redis lua Functions");
             {
@@ -28,7 +26,8 @@ TEST_CASE("Test redis Functions")
                 REQUIRE(ret.value() == lib_name);
             }
             {
-                auto ret = co_await async_redis->async_fcall<long long>("my_func", std::vector<std::string>{"k1", "k2"},
+                auto ret = co_await async_redis->async_fcall<long long>("my_func",
+                                                                        std::vector<std::string>{"k1", "k2"},
                                                                         std::vector<std::string>{});
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == 3);
@@ -44,12 +43,10 @@ TEST_CASE("Test redis Functions")
     f.wait();
 }
 
-TEST_CASE("Test redis EVAL")
-{
+TEST_CASE("Test redis EVAL") {
     auto f = asio::co_spawn(
         pool->getIoContext(),
-        [&] -> asio::awaitable<void>
-        {
+        [&] -> asio::awaitable<void> {
             std::string script =
                 "redis.call('set', KEYS[1], 1);"
                 "redis.call('set', KEYS[2], 2);"

@@ -6,12 +6,10 @@
 #include <string_view>
 #include <vector>
 
-TEST_CASE("Test redis PubSub")
-{
+TEST_CASE("Test redis PubSub") {
     auto f = asio::co_spawn(
         pool->getIoContext(),
-        [&] -> asio::awaitable<void>
-        {
+        [&] -> asio::awaitable<void> {
             std::string channel{"channel"};
             std::string message{"hello world"};
             spdlog::info("start test redis publish");

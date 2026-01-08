@@ -30,8 +30,7 @@ inline std::string redis_uri =
     R"(tcp://127.0.0.1:6379?socket_timeout=30s&connect_timeout=10s&pool_size=10&pool_wait_timeout=0s&pool_connection_lifetime=0s&pool_connection_idle_time=0s)";
 inline auto async_redis = std::make_unique<asio_async_redis::Redis<>>(redis_uri);
 #else
-inline auto create_sentinel_options()
-{
+inline auto create_sentinel_options() {
     sw::redis::SentinelOptions sentinel_opts;
     sentinel_opts.nodes = {
         {"127.0.0.1", 6479},
@@ -41,17 +40,23 @@ inline auto create_sentinel_options()
     sentinel_opts.socket_timeout = std::chrono::milliseconds(10000);
     return sentinel_opts;
 }
+
 inline auto sentinel = std::make_shared<sw::redis::AsyncSentinel>(create_sentinel_options());
-inline auto create_connection_opts()
-{
+
+inline auto create_connection_opts() {
     sw::redis::ConnectionOptions connection_opts;
     connection_opts.connect_timeout = std::chrono::milliseconds(1000);
     connection_opts.socket_timeout = std::chrono::milliseconds(10000);
     return connection_opts;
 }
-inline auto async_redis = std::make_unique<asio_async_redis::Redis<>>(sentinel, "redis-master", sw::redis::Role::MASTER,
+
+inline auto async_redis = std::make_unique<asio_async_redis::Redis<>>(sentinel,
+                                                                      "redis-master",
+                                                                      sw::redis::Role::MASTER,
                                                                       create_connection_opts(),
-                                                                      sw::redis::ConnectionPoolOptions{}, nullptr, 1);
+                                                                      sw::redis::ConnectionPoolOptions{},
+                                                                      nullptr,
+                                                                      1);
 #endif
 inline auto pool = std::make_shared<asio_async_redis::ContextPool>(1);
 
