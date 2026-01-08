@@ -192,6 +192,9 @@ class Redis final {
                     std::string_view group,
                     const Input& input,
                     CompletionToken&& token = CompletionToken{});
+    template <StringSequence Input,
+              asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_xdel(std::string_view key, const Input& input, CompletionToken&& token = CompletionToken{});
 
     // list
     template <StringSequence Input,
@@ -1057,6 +1060,21 @@ inline auto Redis<REDIS>::async_xack(std::string_view key,
         token,
         key,
         group,
+        std::ref(input));
+}
+
+template <typename REDIS>
+template <StringSequence Input, asio::completion_token_for<void(Expected<long long>)> CompletionToken>
+inline auto Redis<REDIS>::async_xdel(std::string_view key, const Input& input, CompletionToken&& token) {
+    return asio::async_initiate<CompletionToken, void(Expected<long long>)>(
+        [this]<typename Handler>(Handler&& handler, auto key, auto&& input) mutable {
+            CmdArgs args;
+            args << "XDEL" << key << input;
+            using RET = long long;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
+        },
+        token,
+        key,
         std::ref(input));
 }
 

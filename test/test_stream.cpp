@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <memory>
+#include <string_view>
 
 TEST_CASE("Test redis stream") {
     auto f = asio::co_spawn(
@@ -13,7 +14,20 @@ TEST_CASE("Test redis stream") {
             std::vector<std::string> value{"field1", "value1", "field2", "value2"};
             spdlog::info("start test redis stream");
             co_await async_redis->async_del(stream_name);
+            {
+                // query first data
+                auto data = co_await async_redis->async_xrange(stream_name, "-", "+", std::make_optional(1));
+                REQUIRE(data.value().empty());
+            }
             std::string id;
+            {
+                auto add_ret = co_await async_redis->async_xadd(stream_name, "*", value);
+                REQUIRE(add_ret.has_value());
+                auto count =
+                    co_await async_redis->async_xdel(stream_name, std::vector<std::string_view>{add_ret.value()});
+                REQUIRE(count.has_value());
+                REQUIRE(count.value() == 1);
+            }
             {
                 auto add_ret = co_await async_redis->async_xadd(stream_name, "*", value);
                 REQUIRE(add_ret.has_value());
