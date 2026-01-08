@@ -299,22 +299,29 @@ inline void Redis<REDIS>::call_command(const Input& cmd, Handler&& handler)
     {
         Expected<RET> result =
             UnExpected(RedisError{std::string{"call_command error:"} + err.what(), RedisError::ErrorCode::Error});
-        asio::post(*io_context,
-                   [this, cancelled, h, result = std::move(result)] mutable
-                   {
-                       if (*cancelled)
-                       {
-                           return;
-                       }
-                       *cancelled = true;
-                       auto ex = asio::get_associated_executor(*h);
-                       auto alloc = asio::get_associated_allocator(*h);
-                       asio::dispatch(ex, asio::bind_allocator(alloc,
-                                                               [h = std::move(h), ret = std::move(result)] mutable
-                                                               {
-                                                                   std::move (*h)(std::move(ret));
-                                                               }));
-                   });
+        auto cb = [this, cancelled, h, result = std::move(result)] mutable
+        {
+            if (*cancelled)
+            {
+                return;
+            }
+            *cancelled = true;
+            auto ex = asio::get_associated_executor(*h);
+            auto alloc = asio::get_associated_allocator(*h);
+            asio::dispatch(ex, asio::bind_allocator(alloc,
+                                                    [h = std::move(h), ret = std::move(result)] mutable
+                                                    {
+                                                        std::move (*h)(std::move(ret));
+                                                    }));
+        };
+        if (io_context)
+        {
+            asio::post(*io_context, std::move(cb));
+        }
+        else
+        {
+            cb();
+        }
     }
     return;
 }
@@ -323,82 +330,89 @@ template <typename REDIS>
 template <typename R, typename H, typename F>
 inline void Redis<REDIS>::process(asio::io_context* io_context, std::shared_ptr<bool> cancelled, H&& h, F&& fut)
 {
-    asio::post(*io_context,
-               [this, cancelled = std::move(cancelled), h = std::forward<H>(h), fut = std::forward<F>(fut)] mutable
-               {
-                   if (*cancelled)
-                   {
-                       return;
-                   }
-                   *cancelled = true;
-                   Expected<R> result;
-                   try
-                   {
-                       if constexpr (!std::is_void_v<R>)
-                       {
-                           if constexpr (std::is_arithmetic_v<R>)
-                           {
-                               result = fut.get();
-                           }
-                           else
-                           {
-                               result = std::move(fut.get());
-                           }
-                       }
-                   }
-                   catch (const sw::redis::TimeoutError& err)
-                   {
-                       result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::TimeoutError});
-                   }
-                   catch (const sw::redis::IoError& err)
-                   {
-                       result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::IoError});
-                   }
-                   catch (const sw::redis::ClosedError& err)
-                   {
-                       result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::ClosedError});
-                   }
-                   catch (const sw::redis::ProtoError& err)
-                   {
-                       result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::ProtoError});
-                   }
-                   catch (const sw::redis::OomError& err)
-                   {
-                       result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::OomError});
-                   }
-                   catch (const sw::redis::WatchError& err)
-                   {
-                       result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::WatchError});
-                   }
-                   catch (const sw::redis::MovedError& err)
-                   {
-                       result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::MovedError});
-                   }
-                   catch (const sw::redis::AskError& err)
-                   {
-                       result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::AskError});
-                   }
-                   catch (const sw::redis::ReplyError& err)
-                   {
-                       result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::ReplyError});
-                   }
-                   catch (const sw::redis::Error& err)
-                   {
-                       result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::Error});
-                   }
-                   catch (const std::exception& err)
-                   {
-                       result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::UnknownError});
-                   }
-                   auto ex = asio::get_associated_executor(*h);
-                   [[maybe_unused]] executor_warning<decltype(ex)> _w;
-                   auto alloc = asio::get_associated_allocator(*h);
-                   asio::dispatch(ex, asio::bind_allocator(alloc,
-                                                           [h = std::move(h), ret = std::move(result)] mutable
-                                                           {
-                                                               std::move (*h)(std::move(ret));
-                                                           }));
-               });
+    auto cb = [this, cancelled = std::move(cancelled), h = std::forward<H>(h), fut = std::forward<F>(fut)] mutable
+    {
+        if (*cancelled)
+        {
+            return;
+        }
+        *cancelled = true;
+        Expected<R> result;
+        try
+        {
+            if constexpr (!std::is_void_v<R>)
+            {
+                if constexpr (std::is_arithmetic_v<R>)
+                {
+                    result = fut.get();
+                }
+                else
+                {
+                    result = std::move(fut.get());
+                }
+            }
+        }
+        catch (const sw::redis::TimeoutError& err)
+        {
+            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::TimeoutError});
+        }
+        catch (const sw::redis::IoError& err)
+        {
+            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::IoError});
+        }
+        catch (const sw::redis::ClosedError& err)
+        {
+            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::ClosedError});
+        }
+        catch (const sw::redis::ProtoError& err)
+        {
+            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::ProtoError});
+        }
+        catch (const sw::redis::OomError& err)
+        {
+            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::OomError});
+        }
+        catch (const sw::redis::WatchError& err)
+        {
+            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::WatchError});
+        }
+        catch (const sw::redis::MovedError& err)
+        {
+            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::MovedError});
+        }
+        catch (const sw::redis::AskError& err)
+        {
+            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::AskError});
+        }
+        catch (const sw::redis::ReplyError& err)
+        {
+            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::ReplyError});
+        }
+        catch (const sw::redis::Error& err)
+        {
+            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::Error});
+        }
+        catch (const std::exception& err)
+        {
+            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::UnknownError});
+        }
+        auto ex = asio::get_associated_executor(*h);
+        [[maybe_unused]] executor_warning<decltype(ex)> _w;
+        auto alloc = asio::get_associated_allocator(*h);
+        asio::dispatch(ex, asio::bind_allocator(alloc,
+                                                [h = std::move(h), ret = std::move(result)] mutable
+                                                {
+                                                    std::move (*h)(std::move(ret));
+                                                }));
+    };
+    if (io_context)
+    {
+        asio::post(*io_context, std::move(cb));
+    }
+    else
+    {
+        cb();
+    }
 }
 
 template <typename REDIS>
@@ -433,6 +447,10 @@ inline auto Redis<REDIS>::register_slot(H&& handler)
                                                                    }));
                            });
             });
+    }
+    else
+    {
+        io_context = nullptr;
     }
     return std::make_tuple(std::move(h), io_context, std::move(cancelled));
 }
