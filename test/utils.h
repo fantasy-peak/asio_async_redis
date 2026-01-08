@@ -21,13 +21,13 @@ namespace asio = boost::asio;
 
 #ifdef TEST_REDIS_CLUSTER
 inline std::string redis_uri =
-    R"(tcp://127.0.0.1:7000?socket_timeout=50s&connect_timeout=10s&pool_size=10&pool_wait_timeout=1s&pool_connection_lifetime=50s&pool_connection_idle_time=50s)";
+    R"(tcp://127.0.0.1:7000?socket_timeout=30s&connect_timeout=10s&pool_size=10&pool_wait_timeout=0s&pool_connection_lifetime=0s&pool_connection_idle_time=0s)";
 inline auto async_redis = std::make_unique<asio_async_redis::Redis<sw::redis::AsyncRedisCluster>>(redis_uri);
 inline auto pool = std::make_unique<asio_async_redis::ContextPool>(1);
 #else
 #if 1
 inline std::string redis_uri =
-    R"(tcp://127.0.0.1:6379?socket_timeout=50s&connect_timeout=10s&pool_size=10&pool_wait_timeout=1s&pool_connection_lifetime=50s&pool_connection_idle_time=50s)";
+    R"(tcp://127.0.0.1:6379?socket_timeout=30s&connect_timeout=10s&pool_size=10&pool_wait_timeout=0s&pool_connection_lifetime=0s&pool_connection_idle_time=0s)";
 inline auto async_redis = std::make_unique<asio_async_redis::Redis<>>(redis_uri);
 #else
 inline auto create_sentinel_options()

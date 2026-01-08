@@ -61,7 +61,7 @@ namespace asio = boost::asio;
 asio::awaitable<void> do_redis_operations(auto async_redis)
 {
     // Set a key-value pair
-    auto set_ret = co_await async_redis->async_set("my_key", "my_value", asio::use_awaitable);
+    auto set_ret = co_await async_redis->async_set("my_key", "my_value");
     if (set_ret.has_value() && set_ret.value())
     {
         std::cout << "SET successful" << std::endl;
@@ -73,14 +73,14 @@ asio::awaitable<void> do_redis_operations(auto async_redis)
     }
 
     // Get the value of a key
-    auto get_ret = co_await async_redis->async_get("my_key", asio::use_awaitable);
+    auto get_ret = co_await async_redis->async_get("my_key");
     if (get_ret.has_value())
     {
         std::cout << "GET my_key: " << get_ret.value().value() << std::endl;
     }
 
     // Delete a key
-    auto del_ret = co_await async_redis->async_del("my_key", asio::use_awaitable);
+    auto del_ret = co_await async_redis->async_del("my_key");
     if (del_ret.has_value())
     {
         std::cout << "DEL my_key count: " << del_ret.value() << std::endl;
@@ -92,9 +92,9 @@ asio::awaitable<void> do_redis_operations(auto async_redis)
 int main()
 {
     std::string redis_uri =
-        R"(tcp://127.0.0.1:6379?socket_timeout=50s&connect_timeout=10s&pool_size=10&pool_wait_timeout=1s&pool_connection_lifetime=50s&pool_connection_idle_time=50s)";
+        R"(tcp://127.0.0.1:6379?socket_timeout=30s&connect_timeout=10s&pool_size=10&pool_wait_timeout=0s&pool_connection_lifetime=0s&pool_connection_idle_time=0s)";
+
     auto async_redis = std::make_shared<asio_async_redis::Redis<sw::redis::AsyncRedis>>(redis_uri);
-    async_redis->start();
 
     auto pool = std::make_unique<asio_async_redis::ContextPool>(1);
     pool->start();
@@ -103,7 +103,6 @@ int main()
 
     std::this_thread::sleep_for(std::chrono::seconds(10));
 
-    async_redis->stop();
     pool->stop();
 
     return 0;
