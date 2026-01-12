@@ -339,7 +339,8 @@ class Redis final {
     template <typename H>
     auto register_slot(H&& handler);
     template <typename R, typename H, typename F>
-    void process(asio::io_context* io_context, std::shared_ptr<bool> cancelled, H&& h, F&& fut);
+    void process(asio::io_context* io_context, std::shared_ptr<bool> cancelled, H&& h, F&& fut)
+        requires std::is_rvalue_reference_v<H&&> && std::is_rvalue_reference_v<F&&>;
     template <typename RET, typename Input, typename Handler>
     void call_command(const Input& cmd, Handler&& handler);
 
@@ -389,49 +390,60 @@ inline void Redis<REDIS>::call_command(const Input& cmd, Handler&& handler) {
 
 template <typename REDIS>
 template <typename R, typename H, typename F>
-inline void Redis<REDIS>::process(asio::io_context* io_context, std::shared_ptr<bool> cancelled, H&& h, F&& fut) {
+inline void Redis<REDIS>::process(asio::io_context* io_context, std::shared_ptr<bool> cancelled, H&& h, F&& fut)
+    requires std::is_rvalue_reference_v<H&&> && std::is_rvalue_reference_v<F&&>
+{
     auto cb = [this, cancelled = std::move(cancelled), h = std::forward<H>(h), fut = std::forward<F>(fut)] mutable {
         if (*cancelled) {
             return;
         }
         *cancelled = true;
-        Expected<R> result;
+        std::unique_ptr<Expected<R>> result;
         try {
             if constexpr (!std::is_void_v<R>) {
                 if constexpr (std::is_arithmetic_v<R>) {
-                    result = fut.get();
+                    result = std::make_unique<Expected<R>>(fut.get());
                 } else {
-                    result = std::move(fut.get());
+                    result = std::make_unique<Expected<R>>(std::move(fut.get()));
                 }
+            } else {
+                result = std::make_unique<Expected<R>>();
             }
         } catch (const sw::redis::TimeoutError& err) {
-            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::TimeoutError});
+            result =
+                std::make_unique<Expected<R>>(UnExpected(RedisError{err.what(), RedisError::ErrorCode::TimeoutError}));
         } catch (const sw::redis::IoError& err) {
-            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::IoError});
+            result = std::make_unique<Expected<R>>(UnExpected(RedisError{err.what(), RedisError::ErrorCode::IoError}));
         } catch (const sw::redis::ClosedError& err) {
-            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::ClosedError});
+            result =
+                std::make_unique<Expected<R>>(UnExpected(RedisError{err.what(), RedisError::ErrorCode::ClosedError}));
         } catch (const sw::redis::ProtoError& err) {
-            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::ProtoError});
+            result =
+                std::make_unique<Expected<R>>(UnExpected(RedisError{err.what(), RedisError::ErrorCode::ProtoError}));
         } catch (const sw::redis::OomError& err) {
-            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::OomError});
+            result = std::make_unique<Expected<R>>(UnExpected(RedisError{err.what(), RedisError::ErrorCode::OomError}));
         } catch (const sw::redis::WatchError& err) {
-            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::WatchError});
+            result =
+                std::make_unique<Expected<R>>(UnExpected(RedisError{err.what(), RedisError::ErrorCode::WatchError}));
         } catch (const sw::redis::MovedError& err) {
-            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::MovedError});
+            result =
+                std::make_unique<Expected<R>>(UnExpected(RedisError{err.what(), RedisError::ErrorCode::MovedError}));
         } catch (const sw::redis::AskError& err) {
-            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::AskError});
+            result = std::make_unique<Expected<R>>(UnExpected(RedisError{err.what(), RedisError::ErrorCode::AskError}));
         } catch (const sw::redis::ReplyError& err) {
-            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::ReplyError});
+            result =
+                std::make_unique<Expected<R>>(UnExpected(RedisError{err.what(), RedisError::ErrorCode::ReplyError}));
         } catch (const sw::redis::Error& err) {
-            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::Error});
+            result = std::make_unique<Expected<R>>(UnExpected(RedisError{err.what(), RedisError::ErrorCode::Error}));
         } catch (const std::exception& err) {
-            result = UnExpected(RedisError{err.what(), RedisError::ErrorCode::UnknownError});
+            result =
+                std::make_unique<Expected<R>>(UnExpected(RedisError{err.what(), RedisError::ErrorCode::UnknownError}));
         }
         auto ex = asio::get_associated_executor(*h);
         [[maybe_unused]] executor_warning<decltype(ex)> _w;
         auto alloc = asio::get_associated_allocator(*h);
         asio::dispatch(ex, asio::bind_allocator(alloc, [h = std::move(h), ret = std::move(result)] mutable {
-                           std::move (*h)(std::move(ret));
+                           std::move (*h)(std::move(*ret));
                        }));
     };
     if (io_context) {
