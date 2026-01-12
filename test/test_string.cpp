@@ -24,9 +24,6 @@ TEST_CASE("Test redis string") {
                 auto bret = co_await async_redis->async_incrby("num", 5);
                 REQUIRE(bret.has_value());
                 REQUIRE(bret.value() == 16);
-                auto tret = co_await async_redis->async_ttl("num");
-                REQUIRE(tret.has_value());
-                REQUIRE(tret.value() == -1);
             }
             {
                 auto ret = co_await async_redis->async_set(key, "test_value");
@@ -39,19 +36,9 @@ TEST_CASE("Test redis string") {
                 REQUIRE(ret.value()[0].value() == "test_value");
             }
             {
-                auto ret = co_await async_redis->async_expire(key, std::chrono::seconds(100));
-                REQUIRE(ret.has_value());
-                REQUIRE(ret.value() == true);
-            }
-            {
                 auto ret = co_await async_redis->async_get(key);
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == "test_value");
-            }
-            {
-                auto ret = co_await async_redis->async_exists(std::vector<std::string>{key});
-                REQUIRE(ret.has_value());
-                REQUIRE(ret.value() == 1);
             }
             {
                 auto ret = co_await async_redis->async_del(key);

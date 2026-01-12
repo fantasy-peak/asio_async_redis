@@ -93,18 +93,10 @@ class Redis final {
     template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken = asio::use_awaitable_t<>>
     auto async_ping(CompletionToken&& token = CompletionToken{});
 
-    // string
-    template <asio::completion_token_for<void(Expected<std::optional<std::string>>)> CompletionToken =
-                  asio::use_awaitable_t<>>
-    auto async_get(std::string_view key, CompletionToken&& token = CompletionToken{});
-    template <asio::completion_token_for<void(Expected<bool>)> CompletionToken = asio::use_awaitable_t<>>
-    auto async_set(std::string_view key, std::string_view val, CompletionToken&& token = CompletionToken{});
-    // The return value may become a boolean in the future.
-    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken = asio::use_awaitable_t<>>
-    auto async_setex(std::string_view key,
-                     const std::chrono::seconds& ttl,
-                     std::string_view val,
-                     CompletionToken&& token = CompletionToken{});
+    // keys
+    template <
+        asio::completion_token_for<void(Expected<std::vector<std::string>>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_keys(std::string_view pattern, CompletionToken&& token = CompletionToken{});
     template <asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
     auto async_del(std::string_view key, CompletionToken&& token = CompletionToken{});
     template <StringSequence Input,
@@ -117,6 +109,21 @@ class Redis final {
     auto async_expire(std::string_view key,
                       const std::chrono::seconds& timeout,
                       CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<bool>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_persist(std::string_view key, CompletionToken&& token = CompletionToken{});
+
+    // string
+    template <asio::completion_token_for<void(Expected<std::optional<std::string>>)> CompletionToken =
+                  asio::use_awaitable_t<>>
+    auto async_get(std::string_view key, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<bool>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_set(std::string_view key, std::string_view val, CompletionToken&& token = CompletionToken{});
+    // The return value may become a boolean in the future.
+    template <asio::completion_token_for<void(Expected<std::string>)> CompletionToken = asio::use_awaitable_t<>>
+    auto async_setex(std::string_view key,
+                     const std::chrono::seconds& ttl,
+                     std::string_view val,
+                     CompletionToken&& token = CompletionToken{});
     template <asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
     auto async_incr(std::string_view key, CompletionToken&& token = CompletionToken{});
     template <asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
@@ -686,6 +693,20 @@ inline auto Redis<REDIS>::async_expire(std::string_view key,
         token,
         key,
         timeout);
+}
+
+template <typename REDIS>
+template <asio::completion_token_for<void(Expected<bool>)> CompletionToken>
+inline auto Redis<REDIS>::async_persist(std::string_view key, CompletionToken&& token) {
+    return asio::async_initiate<CompletionToken, void(Expected<bool>)>(
+        [this]<typename Handler>(Handler&& handler, auto key) mutable {
+            using RET = long long;
+            CmdArgs args;
+            args << "PERSIST" << key;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
+        },
+        token,
+        key);
 }
 
 template <typename REDIS>
@@ -1508,6 +1529,24 @@ inline auto Redis<REDIS>::async_ping(CompletionToken&& token) {
             token);
     } else {
         static_assert(false, "sw::redis::AsyncRedisCluster not support");
+    }
+}
+
+template <typename REDIS>
+template <asio::completion_token_for<void(Expected<std::vector<std::string>>)> CompletionToken>
+inline auto Redis<REDIS>::async_keys(std::string_view pattern, CompletionToken&& token) {
+    if constexpr (std::is_same_v<REDIS, sw::redis::AsyncRedis>) {
+        return asio::async_initiate<CompletionToken, void(Expected<std::vector<std::string>>)>(
+            [this]<typename Handler>(Handler&& handler, auto pattern) mutable {
+                using RET = std::vector<std::string>;
+                CmdArgs args;
+                args << "KEYS" << pattern;
+                this->call_command<RET>(args(), std::forward<Handler>(handler));
+            },
+            token,
+            pattern);
+    } else {
+        static_assert(false, "sw::redis::AsyncRedisCluster not support keys");
     }
 }
 
