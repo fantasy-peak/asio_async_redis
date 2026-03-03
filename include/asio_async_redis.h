@@ -156,6 +156,9 @@ class Redis final {
     template <StringSequence Input,
               asio::completion_token_for<void(Expected<long long>)> CompletionToken = asio::use_awaitable_t<>>
     auto async_hdel(std::string_view key, const Input& input, CompletionToken&& token = CompletionToken{});
+    template <asio::completion_token_for<void(Expected<std::optional<std::string>>)> CompletionToken =
+                  asio::use_awaitable_t<>>
+    auto async_hget(std::string_view key, std::string_view field, CompletionToken&& token = CompletionToken{});
 
     // stream
     template <StringSequence Input,
@@ -784,6 +787,21 @@ inline auto Redis<REDIS>::async_hmget(std::string_view key, const Input& input, 
         token,
         key,
         std::ref(input));
+}
+
+template <typename REDIS>
+template <asio::completion_token_for<void(Expected<std::optional<std::string>>)> CompletionToken>
+inline auto Redis<REDIS>::async_hget(std::string_view key, std::string_view field, CompletionToken&& token) {
+    return asio::async_initiate<CompletionToken, void(Expected<std::optional<std::string>>)>(
+        [this]<typename Handler>(Handler&& handler, auto key, auto field) mutable {
+            using RET = std::optional<std::string>;
+            CmdArgs args;
+            args << "HGET" << key << field;
+            this->call_command<RET>(args(), std::forward<Handler>(handler));
+        },
+        token,
+        key,
+        field);
 }
 
 template <typename REDIS>

@@ -35,6 +35,15 @@ TEST_CASE("Test redis hash") {
                 REQUIRE(ret.value()[0].value() == "val1");
             }
             {
+                auto ret = co_await async_redis->async_hget(key, "field1");
+                REQUIRE(ret.has_value());
+                REQUIRE(ret.value().value() == "val1");
+            }
+            {
+                auto ret = co_await async_redis->async_hget(key, "field1_not_exist");
+                REQUIRE(!ret.value().has_value());
+            }
+            {
                 auto ret = co_await async_redis->async_hdel(key, std::vector<std::string>{"field1"});
                 REQUIRE(ret.has_value());
                 REQUIRE(ret.value() == 1);
